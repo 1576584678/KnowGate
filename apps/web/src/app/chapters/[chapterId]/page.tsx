@@ -17,7 +17,7 @@ import {
   Sparkles,
   Target,
 } from "lucide-react";
-import { getChapter, gradeWorld } from "@/content/math-grade4";
+import { useContent } from "@/components/content-provider";
 import { FractionVisual } from "@/components/fraction-visual";
 import { useProgress } from "@/components/progress-provider";
 import { StatusPill } from "@/components/ui";
@@ -36,6 +36,7 @@ export default function ChapterPage() {
   const params = useParams<{ chapterId: string }>();
   const router = useRouter();
   const { completeChapter } = useProgress();
+  const { getChapter, gradeWorld } = useContent();
   const chapter = getChapter(params.chapterId);
   const storageKey = `knowgate.chapter.${params.chapterId}`;
   const answersStorageKey = `${storageKey}.answers`;

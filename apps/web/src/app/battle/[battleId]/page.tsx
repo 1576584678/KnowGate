@@ -24,7 +24,7 @@ import {
   type PublicBattleState,
   type ResolveAnswerResult,
 } from "@knowgate/domain";
-import { getMilestone, getNode } from "@/content/math-grade4";
+import { useContent } from "@/components/content-provider";
 import { FractionVisual } from "@/components/fraction-visual";
 import { useProgress } from "@/components/progress-provider";
 import { MasteryMeter, StatusPill } from "@/components/ui";
@@ -34,6 +34,7 @@ export default function BattlePage() {
   const params = useParams<{ battleId: string }>();
   const router = useRouter();
   const { recordBattle } = useProgress();
+  const { getNode } = useContent();
   const [battle, setBattle] = useState<PublicBattleState | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<
@@ -412,6 +413,7 @@ function BattleResult({
   onRetry: () => void;
 }) {
   const { passedChapterIds } = useProgress();
+  const { getMilestone, getNode } = useContent();
   const won = battle.status === "won";
   const accuracy =
     battle.answeredCount === 0

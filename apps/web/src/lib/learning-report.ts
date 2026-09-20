@@ -5,15 +5,9 @@ import {
   type BattleOutcome,
   type KnowledgeNode,
 } from "@knowgate/domain";
-import {
-  bossQuestions,
-  chapters,
-  getNode,
-  gradeWorld,
-  knowledgeNodes,
-  milestones,
-} from "@/content/math-grade4";
 import { getPersistence, type PersistenceStore } from "@/lib/persistence";
+import { buildRuntimeContentGraph } from "@/lib/runtime-content";
+import type { ContentGraph } from "@/lib/content-validation";
 
 export type NodeMasteryReport = {
   nodeId: string;
@@ -40,6 +34,7 @@ function latestOutcome(
 function outcomeForNode(
   nodeId: string,
   outcomes: Record<string, BattleOutcome>,
+  milestones: ContentGraph["milestones"],
 ) {
   const nodeMilestones = milestones.filter((milestone) =>
     milestone.nodeIds.includes(nodeId),
@@ -61,20 +56,25 @@ function nextReviewAt(
   return Number.isNaN(reviewAt.getTime()) ? null : reviewAt.toISOString();
 }
 
-export function getNodeMasteryReport(
+function buildNodeMasteryReport(
   profileId: string,
-  persistence: PersistenceStore = getPersistence(),
+  graph: ContentGraph,
+  persistence: PersistenceStore,
 ): NodeMasteryReport[] {
   const progress = persistence.getProgress(profileId);
 
-  return knowledgeNodes.map((node) => {
-    const nodeChapters = chapters.filter((chapter) =>
+  return graph.nodes.map((node) => {
+    const nodeChapters = graph.chapters.filter((chapter) =>
       chapter.nodeIds.includes(node.id),
     );
     const completedChapters = nodeChapters.filter((chapter) =>
       progress.passedChapterIds.includes(chapter.id),
     ).length;
-    const outcome = outcomeForNode(node.id, progress.battleOutcomes);
+    const outcome = outcomeForNode(
+      node.id,
+      progress.battleOutcomes,
+      graph.milestones,
+    );
     const breakdown = calculateMasteryBreakdown({
       completedChapters,
       totalChapters: nodeChapters.length,
@@ -107,7 +107,18 @@ export function getNodeMasteryReport(
   });
 }
 
-function prerequisitePath(nodeId: string) {
+export function getNodeMasteryReport(
+  profileId: string,
+  persistence: PersistenceStore = getPersistence(),
+): NodeMasteryReport[] {
+  return buildNodeMasteryReport(
+    profileId,
+    buildRuntimeContentGraph(persistence),
+    persistence,
+  );
+}
+
+function prerequisitePath(nodeId: string, graph: ContentGraph) {
   const path: KnowledgeNode[] = [];
   const visited = new Set<string>();
 
@@ -115,7 +126,7 @@ function prerequisitePath(nodeId: string) {
     if (visited.has(currentId)) return;
     visited.add(currentId);
 
-    const node = getNode(currentId);
+    const node = graph.nodes.find((item) => item.id === currentId);
     if (!node) return;
 
     for (const prerequisiteId of node.prerequisites) {
@@ -133,23 +144,24 @@ export function getRemediationPlan(
   nodeId: string,
   persistence: PersistenceStore = getPersistence(),
 ) {
-  const targetNode = getNode(nodeId);
+  const graph = buildRuntimeContentGraph(persistence);
+  const targetNode = graph.nodes.find((node) => node.id === nodeId);
   if (!targetNode) {
     throw new Error("NODE_NOT_FOUND");
   }
 
-  const path = prerequisitePath(nodeId);
+  const path = prerequisitePath(nodeId, graph);
   const pathNodeIds = new Set(path.map((node) => node.id));
   const reportByNode = new Map(
-    getNodeMasteryReport(profileId, persistence).map((report) => [
+    buildNodeMasteryReport(profileId, graph, persistence).map((report) => [
       report.nodeId,
       report,
     ]),
   );
-  const relatedChapters = chapters.filter((chapter) =>
+  const relatedChapters = graph.chapters.filter((chapter) =>
     chapter.nodeIds.some((chapterNodeId) => pathNodeIds.has(chapterNodeId)),
   );
-  const exercises = bossQuestions
+  const exercises = graph.questions
     .filter((question) => pathNodeIds.has(question.nodeId))
     .slice(0, 3)
     .map((question) => publicQuestion(question));
@@ -175,6 +187,6 @@ export function getRemediationPlan(
       nodeIds: chapter.nodeIds,
     })),
     exercises,
-    contentVersion: gradeWorld.contentVersion,
+    contentVersion: graph.contentVersion,
   };
 }

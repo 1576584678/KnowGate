@@ -15,7 +15,7 @@ import {
   Zap,
 } from "lucide-react";
 import type { BattleMode } from "@knowgate/domain";
-import { chapters, getBoss, getMilestone } from "@/content/math-grade4";
+import { useContent } from "@/components/content-provider";
 import { useProgress } from "@/components/progress-provider";
 import { StatusPill } from "@/components/ui";
 import { profileHeaders } from "@/lib/profile";
@@ -25,6 +25,7 @@ export default function BossBriefPage() {
   const params = useParams<{ milestoneId: string }>();
   const router = useRouter();
   const { passedChapterIds } = useProgress();
+  const { chapters, getBoss, getMilestone } = useContent();
   const milestone = getMilestone(params.milestoneId);
   const [settings, setSettings] = useState<LearningSettings>(defaultSettings);
   const [mode, setMode] = useState<BattleMode>("standard");

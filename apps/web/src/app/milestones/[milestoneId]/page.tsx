@@ -13,12 +13,7 @@ import {
   Target,
 } from "lucide-react";
 import { calculateMasteryBreakdown } from "@knowgate/domain";
-import {
-  chapters,
-  getBoss,
-  getMilestone,
-  getNode,
-} from "@/content/math-grade4";
+import { useContent } from "@/components/content-provider";
 import { useProgress } from "@/components/progress-provider";
 import { MasteryMeter, PageIntro, StatusPill } from "@/components/ui";
 
@@ -26,6 +21,7 @@ export default function MilestonePage() {
   const params = useParams<{ milestoneId: string }>();
   const searchParams = useSearchParams();
   const { passedChapterIds, battleOutcomes } = useProgress();
+  const { chapters, getBoss, getMilestone, getNode } = useContent();
   const milestone = getMilestone(params.milestoneId);
 
   if (!milestone) {

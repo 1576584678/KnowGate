@@ -196,6 +196,7 @@ test.describe("P0 product flow", () => {
 
     const title = `E2E review draft ${Date.now()}`;
     const sourceChapter = chapters[0];
+    const chapterId = `chapter.e2e.${Date.now()}`;
     const createResponse = await request.post(
       "/api/v1/admin/content/drafts",
       {
@@ -205,7 +206,7 @@ test.describe("P0 product flow", () => {
           title,
           payload: {
             ...sourceChapter,
-            id: `chapter.e2e.${Date.now()}`,
+            id: chapterId,
             title,
           },
         },
@@ -254,6 +255,30 @@ test.describe("P0 product flow", () => {
           publication.kind === "chapter",
       ),
     ).toBe(true);
+
+    const runtimeContentResponse = await request.get("/api/v1/content");
+    expect(runtimeContentResponse.ok()).toBe(true);
+    const runtimeContent = (await runtimeContentResponse.json()) as {
+      content: { chapters: Array<{ id: string; title: string }> };
+    };
+    expect(
+      runtimeContent.content.chapters.find(
+        (chapter) => chapter.id === chapterId,
+      )?.title,
+    ).toBe(title);
+
+    const publishedChapterResponse = await request.get(
+      `/api/v1/chapters/${chapterId}`,
+    );
+    expect(publishedChapterResponse.ok()).toBe(true);
+    const publishedChapter = (await publishedChapterResponse.json()) as {
+      id: string;
+      title: string;
+    };
+    expect(publishedChapter).toMatchObject({
+      id: chapterId,
+      title,
+    });
   });
 
   test("rejects forged progress and out-of-order battles", async ({

@@ -6,15 +6,10 @@ import type {
   LearningEventType,
 } from "@knowgate/domain";
 import {
-  chapters,
-  getChapter,
-  getMilestone,
-  gradeWorld,
-} from "@/content/math-grade4";
-import {
   getPersistence,
   type PersistenceStore,
 } from "@/lib/persistence";
+import { buildRuntimeContentGraph } from "@/lib/runtime-content";
 
 const PASS_THRESHOLD = 80;
 const CHAPTER_MASTERY_WEIGHT = 10;
@@ -30,17 +25,16 @@ function answerToIndex(answer: string) {
   return Number.isInteger(numeric) ? numeric : -1;
 }
 
-function chapterQuestions(chapterId: string) {
-  const chapter = getChapter(chapterId);
-  if (!chapter) return [];
-
+function chapterQuestions(chapter: {
+  steps: Array<{ question?: ContentQuestion }>;
+}) {
   return chapter.steps
     .map((step) => step.question)
     .filter((question): question is ContentQuestion => question !== undefined);
 }
 
-function uniqueNodeIds(chapterId: string) {
-  return [...new Set(getChapter(chapterId)?.nodeIds ?? [])];
+function uniqueNodeIds(chapter: { nodeIds: string[] }) {
+  return [...new Set(chapter.nodeIds)];
 }
 
 function createEvent(input: {
@@ -74,18 +68,20 @@ export function completeChapter(
   },
   persistence: PersistenceStore = getPersistence(),
 ): ChapterCompletionResult {
-  const chapter = getChapter(input.chapterId);
+  const graph = buildRuntimeContentGraph(persistence);
+  const chapter = graph.chapters.find((item) => item.id === input.chapterId);
   if (!chapter) {
     throw new Error("CHAPTER_NOT_FOUND");
   }
 
   if (
     input.contentVersion !== undefined &&
-    input.contentVersion !== gradeWorld.contentVersion
+    input.contentVersion !== graph.contentVersion
   ) {
     throw new Error("CONTENT_VERSION_MISMATCH");
   }
 
+  const questions = chapterQuestions(chapter);
   const existing = persistence.getChapterCompletion(
     input.profileId,
     input.chapterId,
@@ -96,20 +92,22 @@ export function completeChapter(
       milestoneId: chapter.milestoneId,
       score: existing.score,
       correctCount: Math.round(
-        (existing.score / 100) * chapterQuestions(input.chapterId).length,
+        (existing.score / 100) * questions.length,
       ),
-      questionCount: chapterQuestions(input.chapterId).length,
+      questionCount: questions.length,
       passed: true,
       milestoneCompleted: isMilestoneCompleted(
         input.profileId,
         chapter.milestoneId,
+        graph.milestones,
         persistence,
       ),
       completedAt: existing.completedAt,
+      chapter,
+      contentVersion: graph.contentVersion,
     });
   }
 
-  const questions = chapterQuestions(input.chapterId);
   if (questions.length === 0) {
     throw new Error("CHAPTER_QUIZ_NOT_FOUND");
   }
@@ -148,7 +146,7 @@ export function completeChapter(
         questionCount: questions.length,
         durationSec,
       },
-      contentVersion: gradeWorld.contentVersion,
+      contentVersion: graph.contentVersion,
     }),
   );
 
@@ -163,16 +161,21 @@ export function completeChapter(
       ? isMilestoneCompleted(
           input.profileId,
           chapter.milestoneId,
+          graph.milestones,
           persistence,
         )
       : false,
     completedAt,
+    chapter,
+    contentVersion: graph.contentVersion,
   });
 }
 
 function buildResult(input: {
   chapterId: string;
   milestoneId: string;
+  chapter: { nodeIds: string[] };
+  contentVersion: string;
   score: number;
   correctCount: number;
   questionCount: number;
@@ -181,7 +184,7 @@ function buildResult(input: {
   completedAt: string;
 }): ChapterCompletionResult {
   const masteryDelta = Object.fromEntries(
-    uniqueNodeIds(input.chapterId).map((nodeId) => [
+    uniqueNodeIds(input.chapter).map((nodeId) => [
       nodeId,
       Math.round((input.score / 100) * CHAPTER_MASTERY_WEIGHT),
     ]),
@@ -197,7 +200,7 @@ function buildResult(input: {
     questionCount: input.questionCount,
     masteryDelta,
     nextAction: input.milestoneCompleted ? "boss_available" : "next_chapter",
-    contentVersion: gradeWorld.contentVersion,
+    contentVersion: input.contentVersion,
     completedAt: input.completedAt,
   };
 }
@@ -205,9 +208,10 @@ function buildResult(input: {
 function isMilestoneCompleted(
   profileId: string,
   milestoneId: string,
+  milestones: Array<{ id: string; chapterIds: string[] }>,
   persistence: PersistenceStore,
 ) {
-  const milestone = getMilestone(milestoneId);
+  const milestone = milestones.find((item) => item.id === milestoneId);
   if (!milestone) return false;
 
   const progress = persistence.getProgress(profileId);
@@ -230,11 +234,15 @@ export function recordLearningEvent(
   persistence.recordEvent(
     createEvent({
       ...input,
-      contentVersion: input.contentVersion ?? gradeWorld.contentVersion,
+      contentVersion:
+        input.contentVersion ??
+        buildRuntimeContentGraph(persistence).contentVersion,
     }),
   );
 }
 
 export function isChapterAvailable(chapterId: string) {
-  return chapters.some((chapter) => chapter.id === chapterId);
+  return buildRuntimeContentGraph().chapters.some(
+    (chapter) => chapter.id === chapterId,
+  );
 }

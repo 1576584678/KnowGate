@@ -1,13 +1,9 @@
-import {
-  bosses,
-  chapters,
-  gradeWorld,
-  knowledgeNodes,
-  milestones,
-} from "@/content/math-grade4";
+import type { Milestone } from "@knowgate/domain";
+import { gradeWorld } from "@/content/math-grade4";
 import { validateContentGraph } from "@/lib/content-validation";
+import { buildRuntimeContentGraph } from "@/lib/runtime-content";
 
-function orderedMilestones() {
+function orderedMilestones(milestones: Milestone[]) {
   return [...milestones].sort(
     (left, right) =>
       left.stageNo - right.stageNo || left.id.localeCompare(right.id),
@@ -15,19 +11,20 @@ function orderedMilestones() {
 }
 
 export function getCurriculumPlan() {
-  const ordered = orderedMilestones();
-  const validationIssues = validateContentGraph();
+  const graph = buildRuntimeContentGraph();
+  const ordered = orderedMilestones(graph.milestones);
+  const validationIssues = validateContentGraph(graph);
 
   return {
     subjectId: gradeWorld.subjectId,
     gradeWorldId: gradeWorld.id,
-    contentVersion: gradeWorld.contentVersion,
-    totalStages: gradeWorld.totalStages,
+    contentVersion: graph.contentVersion,
+    totalStages: graph.milestones.length,
     stages: ordered.map((milestone, index) => {
-      const milestoneChapters = chapters
+      const milestoneChapters = graph.chapters
         .filter((chapter) => milestone.chapterIds.includes(chapter.id))
         .sort((left, right) => left.stageNo - right.stageNo);
-      const boss = bosses.find((item) => item.id === milestone.bossId);
+      const boss = graph.bosses.find((item) => item.id === milestone.bossId);
       const previous = ordered[index - 1];
 
       return {
@@ -58,10 +55,10 @@ export function getCurriculumPlan() {
       warnings: validationIssues.filter((issue) => issue.severity === "warning"),
     },
     counts: {
-      nodes: knowledgeNodes.length,
-      chapters: chapters.length,
-      milestones: milestones.length,
-      bosses: bosses.length,
+      nodes: graph.nodes.length,
+      chapters: graph.chapters.length,
+      milestones: graph.milestones.length,
+      bosses: graph.bosses.length,
     },
   };
 }

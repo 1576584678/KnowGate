@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "@/app/globals.css";
 import { BottomNav } from "@/components/bottom-nav";
+import { ContentProvider } from "@/components/content-provider";
 import { PageViewTracker } from "@/components/page-view-tracker";
 import { ProgressProvider } from "@/components/progress-provider";
 import { SiteHeader } from "@/components/site-header";
@@ -25,12 +26,14 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <a className="skip-link" href="#main-content">
           跳到主要内容
         </a>
-        <ProgressProvider>
-          <PageViewTracker />
-          <SiteHeader />
-          <main id="main-content">{children}</main>
-          <BottomNav />
-        </ProgressProvider>
+        <ContentProvider>
+          <ProgressProvider>
+            <PageViewTracker />
+            <SiteHeader />
+            <main id="main-content">{children}</main>
+            <BottomNav />
+          </ProgressProvider>
+        </ContentProvider>
       </body>
     </html>
   );

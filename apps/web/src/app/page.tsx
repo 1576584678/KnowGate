@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { calculateMasteryBreakdown } from "@knowgate/domain";
 import type { CSSProperties } from "react";
-import { chapters, getBoss, milestones } from "@/content/math-grade4";
+import { useContent } from "@/components/content-provider";
 import { useProgress } from "@/components/progress-provider";
 import { MasteryMeter, PageIntro, StateIcon, StatusPill } from "@/components/ui";
 
@@ -33,6 +33,7 @@ type MilestoneState = "done" | "current" | "available" | "locked";
 
 export default function WorldMapPage() {
   const { passedChapterIds, battleOutcomes, ready } = useProgress();
+  const { chapters, milestones, getBoss } = useContent();
   const currentMilestone =
     milestones.find(
       (milestone) => battleOutcomes[milestone.id]?.status !== "won",

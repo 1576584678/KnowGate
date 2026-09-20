@@ -1,9 +1,4 @@
-import type { MasteryStatus } from "@knowgate/domain";
-import {
-  chapters,
-  getMilestone,
-  gradeWorld,
-} from "@/content/math-grade4";
+import type { Chapter, MasteryStatus } from "@knowgate/domain";
 import {
   getNodeMasteryReport,
   getRemediationPlan,
@@ -14,6 +9,7 @@ import {
   type ChapterCompletionRecord,
   type PersistenceStore,
 } from "@/lib/persistence";
+import { buildRuntimeContentGraph } from "@/lib/runtime-content";
 
 const REPORT_TIME_ZONE = "Asia/Shanghai";
 const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -175,6 +171,7 @@ function completionForChapter(
 }
 
 function completedChapterEntries(
+  chapters: Chapter[],
   persistence: PersistenceStore,
   profileId: string,
   range: { start: DateKey; end: DateKey },
@@ -186,9 +183,9 @@ function completedChapterEntries(
     }))
     .filter(
       (
-        entry,
+      entry,
       ): entry is {
-        chapter: (typeof chapters)[number];
+        chapter: Chapter;
         completion: ChapterCompletionRecord;
       } =>
         entry.completion !== undefined &&
@@ -244,10 +241,12 @@ export function getWeeklyStudentReport(
 ): WeeklyStudentReport {
   const now = options.now ?? new Date();
   const range = weekRange(options.weekStart, now);
+  const graph = buildRuntimeContentGraph(persistence);
   const events = persistence
     .getLearningEvents(profileId)
     .filter((event) => isWithinWeek(event.occurredAt, range));
   const completedChapters = completedChapterEntries(
+    graph.chapters,
     persistence,
     profileId,
     range,
@@ -289,7 +288,9 @@ export function getWeeklyStudentReport(
           : "";
       return {
         milestoneId,
-        milestoneName: getMilestone(milestoneId)?.name ?? "未知关卡",
+        milestoneName:
+          graph.milestones.find((milestone) => milestone.id === milestoneId)
+            ?.name ?? "未知关卡",
         status: event.eventType === "boss_won" ? "won" : "lost",
         accuracy:
           typeof event.payload.accuracy === "number"
@@ -310,7 +311,7 @@ export function getWeeklyStudentReport(
   return {
     studentId: profileId,
     generatedAt: now.toISOString(),
-    contentVersion: gradeWorld.contentVersion,
+    contentVersion: graph.contentVersion,
     period: {
       weekStart: range.start,
       weekEnd: range.end,

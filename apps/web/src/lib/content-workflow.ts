@@ -12,14 +12,7 @@ import type {
   Milestone,
   QuestionKind,
 } from "@knowgate/domain";
-import {
-  bossQuestions,
-  bosses,
-  chapters,
-  gradeWorld,
-  knowledgeNodes,
-  milestones,
-} from "@/content/math-grade4";
+import { gradeWorld } from "@/content/math-grade4";
 import {
   validateContentGraph,
   type ContentGraph,
@@ -28,6 +21,7 @@ import {
   getPersistence,
   type PersistenceStore,
 } from "@/lib/persistence";
+import { buildRuntimeContentGraph } from "@/lib/runtime-content";
 
 const DRAFT_KINDS: ContentDraftKind[] = [
   "knowledge_node",
@@ -265,15 +259,11 @@ function upsertById<Entity extends { id: string }>(
   return [...byId.values()];
 }
 
-function baseGraph(): ContentGraph {
-  return {
-    contentVersion: gradeWorld.contentVersion,
-    nodes: knowledgeNodes,
-    chapters,
-    milestones,
-    bosses,
-    questions: bossQuestions,
-  };
+function baseGraph(persistence: PersistenceStore): ContentGraph {
+  // Validate each new draft on top of the content that is live right now, so
+  // successive publications compose instead of each being checked against the
+  // static seed graph.
+  return buildRuntimeContentGraph(persistence);
 }
 
 function parseCurriculum(payload: ContentDraftPayload) {
@@ -295,29 +285,32 @@ function parseCurriculum(payload: ContentDraftPayload) {
         : readText(payload, "contentVersion"),
     nodes:
       payload.nodes === undefined
-        ? []
+        ? undefined
         : readRecordArray(payload, "nodes").map(parseKnowledgeNode),
     chapters:
       payload.chapters === undefined
-        ? []
+        ? undefined
         : readRecordArray(payload, "chapters").map(parseChapter),
     milestones:
       payload.milestones === undefined
-        ? []
+        ? undefined
         : readRecordArray(payload, "milestones").map(parseMilestone),
     bosses:
       payload.bosses === undefined
-        ? []
+        ? undefined
         : readRecordArray(payload, "bosses").map(parseBoss),
     questions:
       payload.questions === undefined
-        ? []
+        ? undefined
         : readRecordArray(payload, "questions").map(parseQuestion),
   };
 }
 
-function buildDraftPublication(draft: ContentDraft): DraftPublication {
-  const base = baseGraph();
+function buildDraftPublication(
+  draft: ContentDraft,
+  persistence: PersistenceStore,
+): DraftPublication {
+  const base = baseGraph(persistence);
 
   if (draft.kind === "curriculum") {
     const curriculum = parseCurriculum(draft.payload);
@@ -326,19 +319,29 @@ function buildDraftPublication(draft: ContentDraft): DraftPublication {
       contentVersion: curriculum.contentVersion,
       payload: {
         contentVersion: curriculum.contentVersion,
-        nodes: curriculum.nodes,
-        chapters: curriculum.chapters,
-        milestones: curriculum.milestones,
-        bosses: curriculum.bosses,
-        questions: curriculum.questions,
+        ...(curriculum.nodes ? { nodes: curriculum.nodes } : {}),
+        ...(curriculum.chapters ? { chapters: curriculum.chapters } : {}),
+        ...(curriculum.milestones ? { milestones: curriculum.milestones } : {}),
+        ...(curriculum.bosses ? { bosses: curriculum.bosses } : {}),
+        ...(curriculum.questions ? { questions: curriculum.questions } : {}),
       },
       graph: {
         contentVersion: curriculum.contentVersion,
-        nodes: upsertById(base.nodes, curriculum.nodes),
-        chapters: upsertById(base.chapters, curriculum.chapters),
-        milestones: upsertById(base.milestones, curriculum.milestones),
-        bosses: upsertById(base.bosses, curriculum.bosses),
-        questions: upsertById(base.questions, curriculum.questions),
+        nodes: curriculum.nodes
+          ? upsertById(base.nodes, curriculum.nodes)
+          : base.nodes,
+        chapters: curriculum.chapters
+          ? upsertById(base.chapters, curriculum.chapters)
+          : base.chapters,
+        milestones: curriculum.milestones
+          ? upsertById(base.milestones, curriculum.milestones)
+          : base.milestones,
+        bosses: curriculum.bosses
+          ? upsertById(base.bosses, curriculum.bosses)
+          : base.bosses,
+        questions: curriculum.questions
+          ? upsertById(base.questions, curriculum.questions)
+          : base.questions,
       },
     };
   }
@@ -503,7 +506,7 @@ export function reviewContentDraft(
   assertTransition(draft, input.action);
 
   if (input.action === "publish") {
-    const publication = buildDraftPublication(draft);
+    const publication = buildDraftPublication(draft, persistence);
     assertPublishable(publication);
     persistence.recordPublication({
       id: crypto.randomUUID(),

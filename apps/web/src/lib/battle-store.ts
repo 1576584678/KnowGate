@@ -5,19 +5,12 @@ import {
   resolveBattleAnswer,
   type BattleMode,
 } from "@knowgate/domain";
-import {
-  bossQuestions,
-  chapters,
-  getBoss,
-  getMilestone,
-  gradeWorld,
-  milestones,
-} from "@/content/math-grade4";
 import { recordLearningEvent } from "@/lib/chapter-store";
 import {
   getPersistence,
   type PersistenceStore,
 } from "@/lib/persistence";
+import { buildRuntimeContentGraph } from "@/lib/runtime-content";
 
 export function createMilestoneBattle(
   input: {
@@ -28,7 +21,10 @@ export function createMilestoneBattle(
   },
   persistence: PersistenceStore = getPersistence(),
 ) {
-  const milestone = getMilestone(input.milestoneId);
+  const graph = buildRuntimeContentGraph(persistence);
+  const milestone = graph.milestones.find(
+    (item) => item.id === input.milestoneId,
+  );
   if (!milestone) {
     throw new Error("MILESTONE_NOT_FOUND");
   }
@@ -37,7 +33,7 @@ export function createMilestoneBattle(
     throw new Error("MILESTONE_NOT_AVAILABLE");
   }
 
-  const milestoneChapters = chapters.filter((chapter) =>
+  const milestoneChapters = graph.chapters.filter((chapter) =>
     milestone.chapterIds.includes(chapter.id),
   );
   const progress = persistence.getProgress(input.profileId);
@@ -51,7 +47,7 @@ export function createMilestoneBattle(
     throw new Error("MILESTONE_LOCKED");
   }
 
-  const previousMilestone = [...milestones]
+  const previousMilestone = [...graph.milestones]
     .sort((left, right) => left.stageNo - right.stageNo)
     .filter((item) => item.stageNo < milestone.stageNo)
     .at(-1);
@@ -62,14 +58,14 @@ export function createMilestoneBattle(
     throw new Error("PREVIOUS_MILESTONE_LOCKED");
   }
 
-  const boss = getBoss(milestone.bossId);
+  const boss = graph.bosses.find((item) => item.id === milestone.bossId);
   if (!boss) {
     throw new Error("BOSS_NOT_FOUND");
   }
 
   const questions = boss.questionIds
     .map((questionId) =>
-      bossQuestions.find((question) => question.id === questionId),
+      graph.questions.find((question) => question.id === questionId),
     )
     .filter((question) => question !== undefined);
   const battleQuestions = input.extendedTime
@@ -82,7 +78,7 @@ export function createMilestoneBattle(
   const session = createBattleSession({
     id: crypto.randomUUID(),
     milestoneId: milestone.id,
-    contentVersion: gradeWorld.contentVersion,
+    contentVersion: graph.contentVersion,
     boss,
     mode: input.mode,
     questions: battleQuestions,

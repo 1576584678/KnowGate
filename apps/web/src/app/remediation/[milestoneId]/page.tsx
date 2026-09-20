@@ -12,12 +12,7 @@ import {
   Target,
 } from "lucide-react";
 import { calculateMasteryBreakdown } from "@knowgate/domain";
-import {
-  bossQuestions,
-  bosses,
-  getMilestone,
-  getNode,
-} from "@/content/math-grade4";
+import { useContent } from "@/components/content-provider";
 import { FractionVisual } from "@/components/fraction-visual";
 import { useProgress } from "@/components/progress-provider";
 import { MasteryMeter, PageIntro, StatusPill } from "@/components/ui";
@@ -26,6 +21,7 @@ import { trackLearningEvent } from "@/lib/tracking";
 export default function RemediationPage() {
   const params = useParams<{ milestoneId: string }>();
   const { battleOutcomes, passedChapterIds } = useProgress();
+  const { bossQuestions, bosses, getMilestone, getNode } = useContent();
   const outcome = battleOutcomes[params.milestoneId];
   const milestone = getMilestone(params.milestoneId);
   const [exerciseIndex, setExerciseIndex] = useState(0);

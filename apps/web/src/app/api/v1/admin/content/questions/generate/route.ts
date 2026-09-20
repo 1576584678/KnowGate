@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { requireAdminRequest } from "@/lib/admin-auth";
-import { bossQuestions } from "@/content/math-grade4";
 import {
   generateBossQuestionSet,
   getParameterizedQuestionCapabilities,
 } from "@/lib/question-generator";
+import { buildRuntimeContentGraph } from "@/lib/runtime-content";
 
 export const runtime = "nodejs";
 
@@ -30,6 +30,7 @@ export async function POST(request: Request) {
       typeof body.seed === "number" && Number.isFinite(body.seed)
         ? Math.trunc(body.seed)
         : Date.now();
+    const bossQuestions = buildRuntimeContentGraph().questions;
     const sourceQuestions = body.nodeId
       ? bossQuestions.filter((question) => question.nodeId === body.nodeId)
       : bossQuestions;

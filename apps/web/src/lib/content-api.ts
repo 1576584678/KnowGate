@@ -1,17 +1,9 @@
 import { publicQuestion, type ProgressSnapshot } from "@knowgate/domain";
-import {
-  bosses,
-  chapters,
-  getBoss,
-  getChapter,
-  getMilestone,
-  getNode,
-  gradeWorld,
-  milestones,
-  knowledgeNodes,
-} from "@/content/math-grade4";
+import { gradeWorld } from "@/content/math-grade4";
+import { buildRuntimeContentGraph } from "@/lib/runtime-content";
 
 export function getSubjects() {
+  const graph = buildRuntimeContentGraph();
   return [
     {
       id: gradeWorld.subjectId,
@@ -23,7 +15,7 @@ export function getSubjects() {
           name: gradeWorld.name,
         },
       ],
-      contentVersion: gradeWorld.contentVersion,
+      contentVersion: graph.contentVersion,
     },
   ];
 }
@@ -32,20 +24,27 @@ export function getGradeWorld(
   gradeWorldId: string,
   progress: ProgressSnapshot,
 ) {
-  if (gradeWorldId !== gradeWorld.id) {
+  const graph = buildRuntimeContentGraph();
+  const world = {
+    ...gradeWorld,
+    contentVersion: graph.contentVersion,
+    totalStages: graph.milestones.length,
+  };
+
+  if (gradeWorldId !== world.id) {
     throw new Error("GRADE_WORLD_NOT_FOUND");
   }
 
   return {
-    ...gradeWorld,
-    milestones: milestones.map((milestone, index) => {
-      const milestoneChapters = chapters.filter((chapter) =>
+    ...world,
+    milestones: graph.milestones.map((milestone, index) => {
+      const milestoneChapters = graph.chapters.filter((chapter) =>
         milestone.chapterIds.includes(chapter.id),
       );
       const completedChapterCount = milestoneChapters.filter((chapter) =>
         progress.passedChapterIds.includes(chapter.id),
       ).length;
-      const previousMilestone = milestones[index - 1];
+      const previousMilestone = graph.milestones[index - 1];
       const previousWon =
         !previousMilestone ||
         progress.battleOutcomes[previousMilestone.id]?.status === "won";
@@ -74,7 +73,8 @@ export function getGradeWorld(
 }
 
 export function getMilestoneDetail(milestoneId: string) {
-  const milestone = getMilestone(milestoneId);
+  const graph = buildRuntimeContentGraph();
+  const milestone = graph.milestones.find((item) => item.id === milestoneId);
   if (!milestone) {
     throw new Error("MILESTONE_NOT_FOUND");
   }
@@ -82,9 +82,9 @@ export function getMilestoneDetail(milestoneId: string) {
   return {
     ...milestone,
     nodes: milestone.nodeIds
-      .map((nodeId) => getNode(nodeId))
+      .map((nodeId) => graph.nodes.find((node) => node.id === nodeId))
       .filter((node) => node !== undefined),
-    chapters: chapters
+    chapters: graph.chapters
       .filter((chapter) => milestone.chapterIds.includes(chapter.id))
       .map((chapter) => ({
         id: chapter.id,
@@ -94,13 +94,15 @@ export function getMilestoneDetail(milestoneId: string) {
         estimatedMinutes: chapter.estimatedMinutes,
         nodeIds: chapter.nodeIds,
       })),
-    boss: getBoss(milestone.bossId) ?? null,
-    contentVersion: gradeWorld.contentVersion,
+    boss:
+      graph.bosses.find((boss) => boss.id === milestone.bossId) ?? null,
+    contentVersion: graph.contentVersion,
   };
 }
 
 export function getChapterDetail(chapterId: string) {
-  const chapter = getChapter(chapterId);
+  const graph = buildRuntimeContentGraph();
+  const chapter = graph.chapters.find((item) => item.id === chapterId);
   if (!chapter) {
     throw new Error("CHAPTER_NOT_FOUND");
   }
@@ -111,14 +113,14 @@ export function getChapterDetail(chapterId: string) {
       ...step,
       question: step.question ? publicQuestion(step.question) : undefined,
     })),
-    contentVersion: gradeWorld.contentVersion,
+    contentVersion: graph.contentVersion,
   };
 }
 
 export function getKnowledgeNodes() {
-  return knowledgeNodes;
+  return buildRuntimeContentGraph().nodes;
 }
 
 export function getBosses() {
-  return bosses;
+  return buildRuntimeContentGraph().bosses;
 }

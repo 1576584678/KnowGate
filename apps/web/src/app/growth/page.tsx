@@ -14,13 +14,14 @@ import {
   calculateMasteryBreakdown,
   getMasteryStatus,
 } from "@knowgate/domain";
-import { chapters, getNode, milestones } from "@/content/math-grade4";
+import { useContent } from "@/components/content-provider";
 import { useProgress } from "@/components/progress-provider";
 import { MasteryMeter, PageIntro, StatusPill } from "@/components/ui";
 import { trackLearningEvent } from "@/lib/tracking";
 
 export default function GrowthPage() {
   const { passedChapterIds, battleOutcomes } = useProgress();
+  const { chapters, getNode, milestones } = useContent();
   const trackedReport = useRef(false);
   const currentMilestone =
     milestones.find(
