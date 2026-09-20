@@ -10,6 +10,7 @@ import {
   Shield,
   Target,
 } from "lucide-react";
+import { calculateMasteryBreakdown } from "@knowgate/domain";
 import type { CSSProperties } from "react";
 import { chapters, firstMilestone, milestones } from "@/content/math-grade4";
 import { useProgress } from "@/components/progress-provider";
@@ -40,15 +41,15 @@ export default function WorldMapPage() {
   const completedMilestones = milestones.filter(
     (milestone) => battleOutcomes[milestone.id]?.status === "won",
   ).length;
-  const masteryValue = firstBossWon
-    ? 88
-    : Math.round(
-        (passedChapterIds.filter((chapterId) =>
-          firstMilestone.chapterIds.includes(chapterId),
-        ).length /
-          chapters.length) *
-          70,
-      );
+  const firstMilestonePassedCount = passedChapterIds.filter((chapterId) =>
+    firstMilestone.chapterIds.includes(chapterId),
+  ).length;
+  const mastery = calculateMasteryBreakdown({
+    completedChapters: firstMilestonePassedCount,
+    totalChapters: firstMilestone.chapterIds.length,
+    bossOutcome: battleOutcomes[firstMilestone.id],
+  });
+  const masteryValue = mastery.score;
 
   function stateFor(milestoneId: string): MilestoneState {
     if (battleOutcomes[milestoneId]?.status === "won") return "done";

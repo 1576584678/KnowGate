@@ -4,20 +4,12 @@ import { useEffect, useState } from "react";
 import { Clock3, RotateCcw, Settings2, Sparkles, Volume2 } from "lucide-react";
 import { useProgress } from "@/components/progress-provider";
 import { PageIntro, StatusPill } from "@/components/ui";
-
-type SettingsState = {
-  learningMode: boolean;
-  extendedTime: boolean;
-  reducedMotion: boolean;
-  sound: boolean;
-};
-
-const defaultSettings: SettingsState = {
-  learningMode: false,
-  extendedTime: false,
-  reducedMotion: false,
-  sound: true,
-};
+import {
+  defaultSettings,
+  readSettings,
+  writeSettings,
+  type LearningSettings,
+} from "@/lib/settings";
 
 export default function SettingsPage() {
   const { resetProgress } = useProgress();
@@ -25,24 +17,19 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem("knowgate.settings.v1");
-      if (raw) setSettings({ ...defaultSettings, ...JSON.parse(raw) });
-    } catch {
-      setSettings(defaultSettings);
-    }
+    setSettings(readSettings());
   }, []);
 
   useEffect(() => {
-    window.localStorage.setItem("knowgate.settings.v1", JSON.stringify(settings));
+    writeSettings(settings);
     document.documentElement.dataset.reducedMotion = settings.reducedMotion
       ? "true"
       : "false";
   }, [settings]);
 
-  function update<Key extends keyof SettingsState>(
+  function update<Key extends keyof LearningSettings>(
     key: Key,
-    value: SettingsState[Key],
+    value: LearningSettings[Key],
   ) {
     setSettings((current) => ({ ...current, [key]: value }));
     setSaved(true);
@@ -98,8 +85,10 @@ export default function SettingsPage() {
       </section>
 
       <section className="settings-panel danger-panel">
-        <h2>本地数据</h2>
-        <p>当前 MVP 把学习进度保存在这个浏览器中。重置后无法恢复。</p>
+        <h2>学习档案</h2>
+        <p>
+          当前 MVP 使用匿名设备档案同步进度。重置后，这个档案中的记录无法恢复。
+        </p>
         <button
           className="button button--danger"
           onClick={() => {

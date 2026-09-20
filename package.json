@@ -10,9 +10,9 @@
     "dev": "npm run dev --workspace @knowgate/web",
     "build": "npm run build --workspace @knowgate/web",
     "lint": "npm run lint --workspace @knowgate/web",
-    "test": "npm run test --workspace @knowgate/domain"
+    "test": "npm run test --workspace @knowgate/domain && npm run test --workspace @knowgate/web"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.5"
   }
 }

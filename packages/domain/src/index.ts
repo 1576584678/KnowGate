@@ -108,11 +108,44 @@ export type BattleMistake = {
   timedOut: boolean;
 };
 
-export type BattleStatus = "active" | "won" | "lost";
+export type BattleStatus = "active" | "won" | "lost" | "abandoned";
+
+export type BattleOutcome = {
+  milestoneId: string;
+  status: "won" | "lost";
+  accuracy: number;
+  maxCombo: number;
+  mistakes: BattleMistake[];
+  completedAt: string;
+};
+
+export type ProgressSnapshot = {
+  passedChapterIds: string[];
+  battleOutcomes: Record<string, BattleOutcome>;
+};
+
+export type MasteryStatus = "learning" | "developing" | "mastered";
+
+export type MasteryEvidence = {
+  completedChapters: number;
+  totalChapters: number;
+  bossOutcome?: BattleOutcome;
+  delayedReviewScore?: number;
+};
+
+export type MasteryBreakdown = {
+  score: number;
+  status: MasteryStatus;
+  chapterScore: number;
+  practiceScore: number;
+  bossScore: number;
+  delayedReviewScore: number;
+};
 
 export type BattleSession = {
   id: string;
   milestoneId: string;
+  contentVersion: string;
   boss: Boss;
   mode: BattleMode;
   status: BattleStatus;
@@ -137,6 +170,7 @@ export type PublicBattleQuestion = Omit<ContentQuestion, "answerIndex"> & {
 export type PublicBattleState = {
   id: string;
   milestoneId: string;
+  contentVersion: string;
   mode: BattleMode;
   status: BattleStatus;
   boss: {
@@ -172,8 +206,54 @@ export type ResolveAnswerResult = {
 
 const COMBO_BONUS_STEPS = new Set([3, 5]);
 
+function clamp(value: number, minimum: number, maximum: number) {
+  return Math.min(maximum, Math.max(minimum, value));
+}
+
 function toIso(date: Date) {
   return date.toISOString();
+}
+
+export function calculateMasteryBreakdown(
+  evidence: MasteryEvidence,
+): MasteryBreakdown {
+  const totalChapters = Math.max(0, evidence.totalChapters);
+  const completedChapters = clamp(
+    evidence.completedChapters,
+    0,
+    totalChapters,
+  );
+  const chapterRatio =
+    totalChapters === 0 ? 0 : completedChapters / totalChapters;
+  const chapterScore = chapterRatio * 20;
+  const practiceScore = Math.min(30, completedChapters * 10);
+  const bossScore =
+    evidence.bossOutcome?.status === "won"
+      ? 40
+      : clamp((evidence.bossOutcome?.accuracy ?? 0) * 0.4, 0, 40);
+  const delayedReviewScore = clamp(evidence.delayedReviewScore ?? 0, 0, 10);
+  const score = Math.round(
+    clamp(chapterScore + practiceScore + bossScore + delayedReviewScore, 0, 100),
+  );
+
+  return {
+    score,
+    status: getMasteryStatus(score),
+    chapterScore: Math.round(chapterScore),
+    practiceScore,
+    bossScore: Math.round(bossScore),
+    delayedReviewScore,
+  };
+}
+
+export function calculateMastery(evidence: MasteryEvidence) {
+  return calculateMasteryBreakdown(evidence).score;
+}
+
+export function getMasteryStatus(mastery: number): MasteryStatus {
+  if (mastery >= 80) return "mastered";
+  if (mastery >= 60) return "developing";
+  return "learning";
 }
 
 export function publicQuestion(
@@ -202,6 +282,7 @@ export function toPublicBattleState(
   return {
     id: session.id,
     milestoneId: session.milestoneId,
+    contentVersion: session.contentVersion,
     mode: session.mode,
     status: session.status,
     boss: {
@@ -229,6 +310,7 @@ export function toPublicBattleState(
 export function createBattleSession(input: {
   id: string;
   milestoneId: string;
+  contentVersion?: string;
   boss: Boss;
   mode: BattleMode;
   questions: BattleQuestion[];
@@ -241,6 +323,7 @@ export function createBattleSession(input: {
   return {
     id: input.id,
     milestoneId: input.milestoneId,
+    contentVersion: input.contentVersion ?? "local",
     boss: input.boss,
     mode: input.mode,
     status: "active",
@@ -265,13 +348,12 @@ export function resolveBattleAnswer(input: {
   submittedAt?: Date;
 }): ResolveAnswerResult {
   const { session, questionId, selectedIndex } = input;
-  const question = session.questions[session.questionIndex];
+  const question = session.questions.find((item) => item.id === questionId);
 
-  if (!question || question.id !== questionId || session.status !== "active") {
-    throw new Error("QUESTION_NOT_ACTIVE");
+  if (!question) {
+    throw new Error("QUESTION_NOT_FOUND");
   }
 
-  const submittedAt = input.submittedAt ?? new Date();
   const servedAnswer = session.answers.find(
     (answer) => answer.questionId === questionId,
   );
@@ -289,6 +371,22 @@ export function resolveBattleAnswer(input: {
     };
   }
 
+  if (
+    session.status !== "active" ||
+    session.questions[session.questionIndex]?.id !== questionId
+  ) {
+    throw new Error("QUESTION_NOT_ACTIVE");
+  }
+
+  if (
+    !Number.isInteger(selectedIndex) ||
+    selectedIndex < -1 ||
+    selectedIndex >= question.options.length
+  ) {
+    throw new Error("INVALID_ANSWER");
+  }
+
+  const submittedAt = input.submittedAt ?? new Date();
   const servedAt = new Date(session.questionServedAt);
   const timedOut =
     submittedAt.getTime() >
@@ -335,9 +433,15 @@ export function resolveBattleAnswer(input: {
     });
   }
 
+  if (question.kind === "decisive" && correct) {
+    session.bossHp = 0;
+  }
+
   if (session.bossHp <= 0) {
     session.status = "won";
   } else if (session.bossDistance <= 0) {
+    session.status = "lost";
+  } else if (question.kind === "decisive") {
     session.status = "lost";
   } else if (session.questionIndex < session.questions.length - 1) {
     session.questionIndex += 1;
@@ -356,6 +460,14 @@ export function resolveBattleAnswer(input: {
     bossAdvance,
     explanation: question.explanation,
   };
+}
+
+export function abandonBattleSession(session: BattleSession) {
+  if (session.status === "active") {
+    session.status = "abandoned";
+  }
+
+  return toPublicBattleState(session);
 }
 
 export function battleAccuracy(session: BattleSession) {

@@ -18,15 +18,17 @@ import {
   Trophy,
   X,
 } from "lucide-react";
-import type {
-  PublicBattleQuestion,
-  PublicBattleState,
-  ResolveAnswerResult,
+import {
+  calculateMasteryBreakdown,
+  type PublicBattleQuestion,
+  type PublicBattleState,
+  type ResolveAnswerResult,
 } from "@knowgate/domain";
-import { getNode } from "@/content/math-grade4";
+import { getMilestone, getNode } from "@/content/math-grade4";
 import { FractionVisual } from "@/components/fraction-visual";
 import { useProgress } from "@/components/progress-provider";
 import { MasteryMeter, StatusPill } from "@/components/ui";
+import { profileHeaders } from "@/lib/profile";
 
 export default function BattlePage() {
   const params = useParams<{ battleId: string }>();
@@ -49,7 +51,9 @@ export default function BattlePage() {
 
     async function loadBattle() {
       try {
-        const response = await fetch(`/api/battles/${params.battleId}`);
+        const response = await fetch(`/api/v1/battles/${params.battleId}`, {
+          headers: profileHeaders(),
+        });
         const payload = await response.json();
         if (!response.ok) {
           throw new Error(payload.error?.message ?? "无法读取战斗。");
@@ -79,9 +83,9 @@ export default function BattlePage() {
       setError("");
 
       try {
-        const response = await fetch(`/api/battles/${battle.id}/answers`, {
+        const response = await fetch(`/api/v1/battles/${battle.id}/answers`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: profileHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({
             questionId: current.id,
             selectedIndex: index,
@@ -135,7 +139,7 @@ export default function BattlePage() {
   useEffect(() => {
     if (
       !battle ||
-      battle.status === "active" ||
+      (battle.status !== "won" && battle.status !== "lost") ||
       recordedBattleRef.current === battle.id
     ) {
       return;
@@ -407,11 +411,29 @@ function BattleResult({
   battle: PublicBattleState;
   onRetry: () => void;
 }) {
+  const { passedChapterIds } = useProgress();
   const won = battle.status === "won";
   const accuracy =
     battle.answeredCount === 0
       ? 0
       : Math.round((battle.correctCount / battle.answeredCount) * 100);
+  const milestone = getMilestone(battle.milestoneId);
+  const milestoneChapterIds = milestone?.chapterIds ?? [];
+  const completedChapters = milestoneChapterIds.filter((chapterId) =>
+    passedChapterIds.includes(chapterId),
+  ).length;
+  const mastery = calculateMasteryBreakdown({
+    completedChapters,
+    totalChapters: milestoneChapterIds.length,
+    bossOutcome: {
+      milestoneId: battle.milestoneId,
+      status: won ? "won" : "lost",
+      accuracy,
+      maxCombo: battle.maxCombo,
+      mistakes: battle.mistakes,
+      completedAt: new Date().toISOString(),
+    },
+  });
   const stars = accuracy >= 90 ? 3 : accuracy >= 70 ? 2 : 1;
   const nextMilestoneNumber = Math.min(10, Number(battle.milestoneId.slice(-2)) + 1);
   const nextMilestoneId = `math.g4.milestone.${String(nextMilestoneNumber).padStart(
@@ -469,8 +491,8 @@ function BattleResult({
             </div>
           </div>
           <MasteryMeter
-            label="分数意义与等值分数"
-            value={won ? 88 : Math.max(42, 72 - battle.mistakes.length * 6)}
+            label={milestone?.theme ?? "当前里程碑掌握度"}
+            value={mastery.score}
           />
         </section>
 

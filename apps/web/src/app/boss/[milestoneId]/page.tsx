@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -18,15 +18,24 @@ import type { BattleMode } from "@knowgate/domain";
 import { chapters, getMilestone } from "@/content/math-grade4";
 import { useProgress } from "@/components/progress-provider";
 import { StatusPill } from "@/components/ui";
+import { profileHeaders } from "@/lib/profile";
+import { defaultSettings, readSettings, type LearningSettings } from "@/lib/settings";
 
 export default function BossBriefPage() {
   const params = useParams<{ milestoneId: string }>();
   const router = useRouter();
-  const { passedChapterIds, battleOutcomes } = useProgress();
+  const { passedChapterIds } = useProgress();
   const milestone = getMilestone(params.milestoneId);
+  const [settings, setSettings] = useState<LearningSettings>(defaultSettings);
   const [mode, setMode] = useState<BattleMode>("standard");
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const savedSettings = readSettings();
+    setSettings(savedSettings);
+    setMode(savedSettings.learningMode ? "learning" : "standard");
+  }, []);
 
   if (!milestone) {
     return (
@@ -55,10 +64,14 @@ export default function BossBriefPage() {
     setError("");
 
     try {
-      const response = await fetch("/api/battles", {
+      const response = await fetch("/api/v1/battles", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ milestoneId: milestone.id, mode }),
+        headers: profileHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          milestoneId: milestone.id,
+          mode,
+          extendedTime: settings.extendedTime,
+        }),
       });
       const payload = await response.json();
       if (!response.ok) {

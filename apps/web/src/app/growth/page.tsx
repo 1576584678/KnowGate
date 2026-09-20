@@ -1,7 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BarChart3, BookOpenCheck, Target, Trophy } from "lucide-react";
+import {
+  ArrowRight,
+  BarChart3,
+  BookOpenCheck,
+  CalendarCheck,
+  Target,
+  Trophy,
+} from "lucide-react";
+import {
+  calculateMasteryBreakdown,
+  getMasteryStatus,
+} from "@knowgate/domain";
 import { chapters, firstMilestone, getNode, milestones } from "@/content/math-grade4";
 import { useProgress } from "@/components/progress-provider";
 import { MasteryMeter, PageIntro, StatusPill } from "@/components/ui";
@@ -9,10 +20,17 @@ import { MasteryMeter, PageIntro, StatusPill } from "@/components/ui";
 export default function GrowthPage() {
   const { passedChapterIds, battleOutcomes } = useProgress();
   const firstOutcome = battleOutcomes[firstMilestone.id];
-  const passedCount = chapters.filter((chapter) =>
+  const firstMilestoneChapters = chapters.filter((chapter) =>
+    firstMilestone.chapterIds.includes(chapter.id),
+  );
+  const passedCount = firstMilestoneChapters.filter((chapter) =>
     passedChapterIds.includes(chapter.id),
   ).length;
-  const mastery = firstOutcome?.status === "won" ? 88 : passedCount * 20;
+  const mastery = calculateMasteryBreakdown({
+    completedChapters: passedCount,
+    totalChapters: firstMilestoneChapters.length,
+    bossOutcome: firstOutcome,
+  });
   const completedMilestones = milestones.filter(
     (milestone) => battleOutcomes[milestone.id]?.status === "won",
   ).length;
@@ -39,22 +57,27 @@ export default function GrowthPage() {
             </div>
             <Target size={25} strokeWidth={2.2} aria-hidden="true" />
           </div>
-          <MasteryMeter label="综合掌握度" value={mastery} />
+          <MasteryMeter label="综合掌握度" value={mastery.score} />
           <div className="mastery-breakdown">
             <div>
               <BookOpenCheck size={20} aria-hidden="true" />
               <span>章节完成</span>
-              <strong>{Math.min(20, passedCount * 7)} / 20</strong>
+              <strong>{mastery.chapterScore} / 20</strong>
             </div>
             <div>
               <Trophy size={20} aria-hidden="true" />
               <span>Boss 验证</span>
-              <strong>{firstOutcome?.status === "won" ? 40 : 0} / 40</strong>
+              <strong>{mastery.bossScore} / 40</strong>
             </div>
             <div>
               <BarChart3 size={20} aria-hidden="true" />
               <span>练习证据</span>
-              <strong>{Math.min(30, passedCount * 10)} / 30</strong>
+              <strong>{mastery.practiceScore} / 30</strong>
+            </div>
+            <div>
+              <CalendarCheck size={20} aria-hidden="true" />
+              <span>延迟复习</span>
+              <strong>{mastery.delayedReviewScore} / 10</strong>
             </div>
           </div>
         </section>
@@ -101,12 +124,15 @@ export default function GrowthPage() {
         </div>
         <div className="mastery-list">
           <div className="mastery-row">
-            <span className="mastery-row__dot" data-done={mastery >= 60} />
+            <span
+              className="mastery-row__dot"
+              data-done={mastery.score >= 60}
+            />
             <div>
               <strong>分数意义与等值分数</strong>
-              <span>{mastery >= 80 ? "已掌握" : mastery >= 60 ? "初步掌握" : "学习中"}</span>
+              <span>{masteryStatusLabel(getMasteryStatus(mastery.score))}</span>
             </div>
-            <strong>{mastery}%</strong>
+            <strong>{mastery.score}%</strong>
           </div>
           <div className="mastery-row">
             <span className="mastery-row__dot" />
@@ -120,4 +146,10 @@ export default function GrowthPage() {
       </section>
     </div>
   );
+}
+
+function masteryStatusLabel(status: ReturnType<typeof getMasteryStatus>) {
+  if (status === "mastered") return "已掌握";
+  if (status === "developing") return "初步掌握";
+  return "学习中";
 }

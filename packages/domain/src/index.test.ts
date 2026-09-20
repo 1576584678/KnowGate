@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  abandonBattleSession,
+  calculateMastery,
+  calculateMasteryBreakdown,
   createBattleSession,
   resolveBattleAnswer,
   type BattleQuestion,
@@ -135,5 +138,157 @@ describe("battle engine", () => {
 
     expect(result.timedOut).toBe(true);
     expect(result.state.boss.distance).toBe(2);
+  });
+
+  it("returns the original resolution for a repeated answer", () => {
+    const session = createBattleSession({
+      id: "battle.test",
+      milestoneId: "milestone.test",
+      boss,
+      mode: "standard",
+      questions,
+    });
+
+    resolveBattleAnswer({
+      session,
+      questionId: "q1",
+      selectedIndex: 1,
+    });
+
+    const repeated = resolveBattleAnswer({
+      session,
+      questionId: "q1",
+      selectedIndex: 0,
+    });
+
+    expect(repeated.accepted).toBe(false);
+    expect(repeated.correct).toBe(true);
+    expect(repeated.state.answeredCount).toBe(1);
+    expect(repeated.state.boss.hp).toBe(2);
+  });
+
+  it("uses the decisive question to finish a battle that is still active", () => {
+    const decisiveQuestion: BattleQuestion = {
+      id: "q.decisive",
+      nodeId: "node.test",
+      kind: "decisive",
+      prompt: "最终问题",
+      options: ["错误", "正确"],
+      answerIndex: 1,
+      explanation: "最终作答正确。",
+      damage: 3,
+      timeLimitSec: 300,
+    };
+    const session = createBattleSession({
+      id: "battle.decisive",
+      milestoneId: "milestone.test",
+      boss: { ...boss, hp: 9 },
+      mode: "standard",
+      questions: [decisiveQuestion],
+    });
+
+    const result = resolveBattleAnswer({
+      session,
+      questionId: decisiveQuestion.id,
+      selectedIndex: 1,
+    });
+
+    expect(result.state.status).toBe("won");
+    expect(result.state.boss.hp).toBe(0);
+    expect(result.state.currentQuestion).toBeNull();
+  });
+
+  it("abandons an active battle without recording a fake answer", () => {
+    const session = createBattleSession({
+      id: "battle.abandon",
+      milestoneId: "milestone.test",
+      boss,
+      mode: "standard",
+      questions,
+    });
+
+    const state = abandonBattleSession(session);
+
+    expect(state.status).toBe("abandoned");
+    expect(state.answeredCount).toBe(0);
+    expect(state.currentQuestion).toBeNull();
+  });
+});
+
+describe("mastery model", () => {
+  it("returns zero evidence as learning", () => {
+    const breakdown = calculateMasteryBreakdown({
+      completedChapters: 0,
+      totalChapters: 3,
+    });
+
+    expect(breakdown.score).toBe(0);
+    expect(breakdown.status).toBe("learning");
+    expect(breakdown.chapterScore).toBe(0);
+    expect(breakdown.practiceScore).toBe(0);
+    expect(breakdown.bossScore).toBe(0);
+  });
+
+  it("combines chapter, practice, boss, and delayed review evidence", () => {
+    const breakdown = calculateMasteryBreakdown({
+      completedChapters: 3,
+      totalChapters: 3,
+      bossOutcome: {
+        milestoneId: "milestone.test",
+        status: "won",
+        accuracy: 90,
+        maxCombo: 4,
+        mistakes: [],
+        completedAt: "2026-09-20T01:00:00.000Z",
+      },
+      delayedReviewScore: 7,
+    });
+
+    expect(breakdown).toMatchObject({
+      score: 97,
+      status: "mastered",
+      chapterScore: 20,
+      practiceScore: 30,
+      bossScore: 40,
+      delayedReviewScore: 7,
+    });
+    expect(calculateMastery({
+      completedChapters: 3,
+      totalChapters: 3,
+      bossOutcome: {
+        milestoneId: "milestone.test",
+        status: "won",
+        accuracy: 90,
+        maxCombo: 4,
+        mistakes: [],
+        completedAt: "2026-09-20T01:00:00.000Z",
+      },
+      delayedReviewScore: 7,
+    })).toBe(97);
+  });
+
+  it("clamps incomplete and invalid evidence to the scoring ranges", () => {
+    const breakdown = calculateMasteryBreakdown({
+      completedChapters: 99,
+      totalChapters: 3,
+      bossOutcome: {
+        milestoneId: "milestone.test",
+        status: "lost",
+        accuracy: 75,
+        maxCombo: 2,
+        mistakes: [],
+        completedAt: "2026-09-20T01:00:00.000Z",
+      },
+      delayedReviewScore: 50,
+    });
+
+    expect(breakdown).toMatchObject({
+      score: 90,
+      status: "mastered",
+      chapterScore: 20,
+      practiceScore: 30,
+      bossScore: 30,
+      delayedReviewScore: 10,
+    });
   });
 });

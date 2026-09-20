@@ -8,6 +8,7 @@ import type {
 
 export const gradeWorld = {
   id: "math.g4",
+  contentVersion: "2026.09.20.1",
   subjectId: "math",
   grade: 4,
   name: "四年级 · 分数群岛",

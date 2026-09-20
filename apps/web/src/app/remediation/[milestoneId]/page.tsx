@@ -11,15 +11,21 @@ import {
   RotateCcw,
   Target,
 } from "lucide-react";
-import { bossQuestions, getNode } from "@/content/math-grade4";
+import { calculateMasteryBreakdown } from "@knowgate/domain";
+import {
+  bossQuestions,
+  getMilestone,
+  getNode,
+} from "@/content/math-grade4";
 import { FractionVisual } from "@/components/fraction-visual";
 import { useProgress } from "@/components/progress-provider";
 import { MasteryMeter, PageIntro, StatusPill } from "@/components/ui";
 
 export default function RemediationPage() {
   const params = useParams<{ milestoneId: string }>();
-  const { battleOutcomes } = useProgress();
+  const { battleOutcomes, passedChapterIds } = useProgress();
   const outcome = battleOutcomes[params.milestoneId];
+  const milestone = getMilestone(params.milestoneId);
   const [exerciseIndex, setExerciseIndex] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
@@ -52,6 +58,14 @@ export default function RemediationPage() {
   const exercise = exercises[exerciseIndex];
   const answered = selectedIndex !== null;
   const correct = answered && selectedIndex === exercise?.answerIndex;
+  const milestoneChapterIds = milestone?.chapterIds ?? [];
+  const mastery = calculateMasteryBreakdown({
+    completedChapters: milestoneChapterIds.filter((chapterId) =>
+      passedChapterIds.includes(chapterId),
+    ).length,
+    totalChapters: milestoneChapterIds.length,
+    bossOutcome: outcome,
+  });
 
   return (
     <div className="page-shell">
@@ -75,7 +89,7 @@ export default function RemediationPage() {
           </h2>
           <MasteryMeter
             label="补强前掌握度"
-            value={outcome?.status === "lost" ? 56 : 64}
+            value={mastery.score}
           />
           <ul>
             <li>先看整体被平均分成几份</li>

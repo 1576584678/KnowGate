@@ -12,6 +12,7 @@ import {
   Shield,
   Target,
 } from "lucide-react";
+import { calculateMasteryBreakdown } from "@knowgate/domain";
 import { chapters, getMilestone, getNode } from "@/content/math-grade4";
 import { useProgress } from "@/components/progress-provider";
 import { MasteryMeter, PageIntro, StatusPill } from "@/components/ui";
@@ -46,9 +47,11 @@ export default function MilestonePage() {
   ).length;
   const ready =
     milestoneChapters.length > 0 && passedCount === milestoneChapters.length;
-  const mastery = outcome?.status === "won"
-    ? 88
-    : Math.round((passedCount / Math.max(1, milestoneChapters.length)) * 72);
+  const mastery = calculateMasteryBreakdown({
+    completedChapters: passedCount,
+    totalChapters: milestoneChapters.length,
+    bossOutcome: outcome,
+  });
   const primaryChapter =
     milestoneChapters.find(
       (chapter) => !passedChapterIds.includes(chapter.id),
@@ -189,7 +192,7 @@ export default function MilestonePage() {
             <span className="eyebrow">Boss 验证</span>
             <h2>分数守卫</h2>
             <p>9 点生命，Boss 前进 5 步会碰到你。连续答对会触发额外伤害。</p>
-            <MasteryMeter label="当前掌握度" value={mastery} />
+            <MasteryMeter label="当前掌握度" value={mastery.score} />
             {ready || outcome?.status === "won" ? (
               <Link
                 className="button button--primary button--wide"
