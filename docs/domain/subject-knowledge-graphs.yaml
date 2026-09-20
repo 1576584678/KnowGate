@@ -1,0 +1,1366 @@
+version: 1
+id_format: subject.domain.node
+notes:
+  - 图谱只描述能力、前置关系和掌握标准，不复制教材表达。
+  - stage 是建议覆盖学段，最终可按年级世界重新编排。
+  - prerequisites 使用节点 id，形成可计算的有向无环图。
+
+subjects:
+  - id: math
+    name: 数学
+    domains:
+      - id: number_sense
+        name: 数与量
+        nodes:
+          - id: math.number_sense.count_to_20
+            name: 20以内认数与数量对应
+            stage: g1
+            prerequisites: []
+            mastery: [能完成数字与数量对应, 能比较20以内数量大小]
+            item_families: [识别, 判断, 应用]
+            boss_theme: 数字森林
+          - id: math.number_sense.place_value
+            name: 数位与十进制表示
+            stage: g1-g2
+            prerequisites: [math.number_sense.count_to_20]
+            mastery: [能说出各数位意义, 能完成简单进位退位]
+            item_families: [识别, 判断, 计算]
+            boss_theme: 数位城
+      - id: arithmetic
+        name: 四则运算
+        nodes:
+          - id: math.arithmetic.add_sub_10
+            name: 10以内加减法
+            stage: g1
+            prerequisites: [math.number_sense.count_to_20]
+            mastery: [能熟练计算10以内加减, 能用图示解释加减]
+            item_families: [计算, 应用, 判断]
+            boss_theme: 十格门
+          - id: math.arithmetic.add_sub_20
+            name: 20以内加减法与进退位
+            stage: g1
+            prerequisites: [math.arithmetic.add_sub_10, math.number_sense.place_value]
+            mastery: [能完成20以内进退位, 能选择简便算法]
+            item_families: [计算, 应用, 迁移]
+            boss_theme: 进位桥
+          - id: math.arithmetic.add_sub_100
+            name: 100以内加减法
+            stage: g2
+            prerequisites: [math.arithmetic.add_sub_20]
+            mastery: [能完成两位数加减, 能解决一步实际问题]
+            item_families: [计算, 应用, 迁移]
+            boss_theme: 百数塔
+          - id: math.arithmetic.multiplication_meaning
+            name: 乘法意义与重复相加
+            stage: g2
+            prerequisites: [math.arithmetic.add_sub_100]
+            mastery: [能把重复相加写成乘法, 能解释乘法各部分意义]
+            item_families: [识别, 建模, 应用]
+            boss_theme: 阵列之门
+          - id: math.arithmetic.multiplication_table
+            name: 99乘法口诀
+            stage: g2-g3
+            prerequisites: [math.arithmetic.multiplication_meaning]
+            mastery: [能熟练调用乘法口诀, 能从口诀反推因数]
+            item_families: [计算, 判断, 迁移]
+            boss_theme: 九九回廊
+          - id: math.arithmetic.division_inverse
+            name: 除法、余数与乘除互逆
+            stage: g3
+            prerequisites: [math.arithmetic.multiplication_table]
+            mastery: [能用乘法验算除法, 能理解余数意义]
+            item_families: [计算, 应用, 建模]
+            boss_theme: 逆流石门
+          - id: math.arithmetic.mixed_operations
+            name: 四则混合运算与运算顺序
+            stage: g3-g4
+            prerequisites: [math.arithmetic.division_inverse]
+            mastery: [能按顺序计算, 能使用括号改变运算]
+            item_families: [计算, 判断, 应用]
+            boss_theme: 运算中枢
+      - id: fractions_decimals
+        name: 分数、小数与比例
+        nodes:
+          - id: math.fractions_decimals.fraction_meaning
+            name: 分数意义与等值分数
+            stage: g3-g4
+            prerequisites: [math.arithmetic.division_inverse]
+            mastery: [能从整体和部分理解分数, 能识别等值分数]
+            item_families: [识别, 建模, 判断]
+            boss_theme: 分数裂谷
+          - id: math.fractions_decimals.fraction_operations
+            name: 分数比较与四则运算
+            stage: g4-g5
+            prerequisites: [math.fractions_decimals.fraction_meaning]
+            mastery: [能比较分数大小, 能完成分数基本运算]
+            item_families: [计算, 应用, 迁移]
+            boss_theme: 分数熔炉
+          - id: math.fractions_decimals.decimal_meaning
+            name: 小数意义与分数互换
+            stage: g4
+            prerequisites: [math.fractions_decimals.fraction_meaning]
+            mastery: [能理解小数位值, 能完成小数分数互换]
+            item_families: [识别, 计算, 判断]
+            boss_theme: 小数回廊
+          - id: math.fractions_decimals.decimal_operations
+            name: 小数四则运算
+            stage: g4-g5
+            prerequisites: [math.fractions_decimals.decimal_meaning]
+            mastery: [能完成小数运算, 能估计结果合理性]
+            item_families: [计算, 应用, 迁移]
+            boss_theme: 精度之塔
+          - id: math.fractions_decimals.ratio_percent
+            name: 比、比例与百分数
+            stage: g5-g6
+            prerequisites: [math.fractions_decimals.fraction_operations, math.fractions_decimals.decimal_operations]
+            mastery: [能表示比和比例, 能解决百分数实际问题]
+            item_families: [建模, 应用, 迁移]
+            boss_theme: 比例天平
+      - id: algebra
+        name: 代数与方程
+        nodes:
+          - id: math.algebra.letters_expressions
+            name: 用字母表示数与代数式
+            stage: g5-g7
+            prerequisites: [math.arithmetic.mixed_operations]
+            mastery: [能用字母表示数量关系, 能求代数式的值]
+            item_families: [识别, 建模, 计算]
+            boss_theme: 字母密室
+          - id: math.algebra.equality_properties
+            name: 等式性质与代数变形
+            stage: g6-g7
+            prerequisites: [math.algebra.letters_expressions]
+            mastery: [能说明等式两边同加同减, 能完成基本移项]
+            item_families: [判断, 计算, 应用]
+            boss_theme: 天平核心
+          - id: math.algebra.linear_equation_one_var
+            name: 一元一次方程
+            stage: g7
+            prerequisites: [math.algebra.equality_properties]
+            mastery: [能解一元一次方程, 能检验方程解]
+            item_families: [计算, 应用, 迁移]
+            boss_theme: 未知数王座
+          - id: math.algebra.equation_modeling
+            name: 方程建模与实际问题
+            stage: g7-g8
+            prerequisites: [math.algebra.linear_equation_one_var]
+            mastery: [能设未知数, 能列方程解决实际问题]
+            item_families: [建模, 应用, 迁移]
+            boss_theme: 情境迷宫
+          - id: math.algebra.functions_coordinates
+            name: 坐标与一次函数
+            stage: g7-g9
+            prerequisites: [math.algebra.linear_equation_one_var]
+            mastery: [能读坐标, 能理解函数变量关系]
+            item_families: [识别, 图象, 应用]
+            boss_theme: 坐标星图
+      - id: geometry
+        name: 几何与测量
+        nodes:
+          - id: math.geometry.length_area_volume
+            name: 长度、面积与体积
+            stage: g2-g6
+            prerequisites: [math.arithmetic.multiplication_table]
+            mastery: [能选择合适单位, 能计算基本面积体积]
+            item_families: [计算, 应用, 迁移]
+            boss_theme: 尺度神殿
+          - id: math.geometry.shapes_relations
+            name: 图形性质与位置关系
+            stage: g4-g8
+            prerequisites: [math.geometry.length_area_volume]
+            mastery: [能识别图形性质, 能说明平行垂直关系]
+            item_families: [判断, 推理, 应用]
+            boss_theme: 几何镜厅
+          - id: math.geometry.triangle_circle
+            name: 三角形、圆与勾股关系
+            stage: g7-g9
+            prerequisites: [math.geometry.shapes_relations]
+            mastery: [能运用三角形和圆性质, 能解决勾股问题]
+            item_families: [计算, 证明, 迁移]
+            boss_theme: 圆弧堡垒
+          - id: math.geometry.similarity_trigonometry
+            name: 相似与锐角三角函数
+            stage: g9
+            prerequisites: [math.geometry.triangle_circle, math.fractions_decimals.ratio_percent]
+            mastery: [能判断相似, 能用三角函数求边角]
+            item_families: [计算, 建模, 应用]
+            boss_theme: 影长之门
+      - id: data_probability
+        name: 统计与概率
+        nodes:
+          - id: math.data_probability.charts
+            name: 数据收集与统计图
+            stage: g3-g7
+            prerequisites: [math.arithmetic.mixed_operations]
+            mastery: [能读统计图, 能选择合适图表]
+            item_families: [读取, 判断, 应用]
+            boss_theme: 数据棱镜
+          - id: math.data_probability.measures
+            name: 平均数、中位数与众数
+            stage: g5-g8
+            prerequisites: [math.data_probability.charts]
+            mastery: [能计算集中趋势, 能解释指标差异]
+            item_families: [计算, 解释, 应用]
+            boss_theme: 均衡密室
+          - id: math.data_probability.probability_basics
+            name: 随机事件与概率基础
+            stage: g6-g9
+            prerequisites: [math.fractions_decimals.fraction_operations]
+            mastery: [能判断随机事件, 能计算简单概率]
+            item_families: [判断, 计算, 应用]
+            boss_theme: 机会转盘
+      - id: modeling
+        name: 建模与应用
+        nodes:
+          - id: math.modeling.word_problem_models
+            name: 应用题模型
+            stage: g2-g9
+            prerequisites: [math.arithmetic.mixed_operations]
+            mastery: [能提取数量关系, 能选择合适运算]
+            item_families: [建模, 应用, 迁移]
+            boss_theme: 情境枢纽
+          - id: math.modeling.multi_step_problems
+            name: 多步骤综合问题
+            stage: g5-g9
+            prerequisites: [math.modeling.word_problem_models, math.algebra.equation_modeling]
+            mastery: [能分解复杂问题, 能检验答案合理性]
+            item_families: [建模, 推理, 迁移]
+            boss_theme: 终局演算
+
+  - id: chinese
+    name: 语文
+    domains:
+      - id: phonetics
+        name: 语音与拼音
+        nodes:
+          - id: chinese.phonetics.pinyin_syllable
+            name: 拼音、声母韵母与音节
+            stage: g1
+            prerequisites: []
+            mastery: [能拼读音节, 能借助拼音识字]
+            item_families: [识别, 拼读, 判断]
+            boss_theme: 声音之门
+          - id: chinese.phonetics.tone_pronunciation
+            name: 声调与朗读节奏
+            stage: g1-g3
+            prerequisites: [chinese.phonetics.pinyin_syllable]
+            mastery: [能正确标调, 能按停顿朗读]
+            item_families: [判断, 朗读, 应用]
+            boss_theme: 四声阶梯
+      - id: characters
+        name: 汉字与词汇
+        nodes:
+          - id: chinese.characters.strokes_radicals
+            name: 笔画、偏旁与部首
+            stage: g1-g2
+            prerequisites: [chinese.phonetics.pinyin_syllable]
+            mastery: [能按笔顺书写, 能借部首理解字形]
+            item_families: [识别, 判断, 书写]
+            boss_theme: 文字工坊
+          - id: chinese.characters.character_meaning
+            name: 字义与形近字
+            stage: g2-g4
+            prerequisites: [chinese.characters.strokes_radicals]
+            mastery: [能辨析形近字, 能结合语境理解字义]
+            item_families: [识别, 判断, 应用]
+            boss_theme: 字形迷阵
+          - id: chinese.characters.dictionary
+            name: 字典与工具书使用
+            stage: g2-g4
+            prerequisites: [chinese.characters.character_meaning]
+            mastery: [能查字典, 能选择义项]
+            item_families: [操作, 判断, 应用]
+            boss_theme: 检索塔
+          - id: chinese.characters.vocabulary_context
+            name: 词语理解与语境运用
+            stage: g3-g9
+            prerequisites: [chinese.characters.character_meaning]
+            mastery: [能解释词语, 能根据语境选择词语]
+            item_families: [识别, 判断, 应用]
+            boss_theme: 词语回廊
+      - id: sentences
+        name: 句子与表达
+        nodes:
+          - id: chinese.sentences.structure
+            name: 句子结构与病句辨析
+            stage: g2-g6
+            prerequisites: [chinese.characters.vocabulary_context]
+            mastery: [能识别主干, 能修改常见病句]
+            item_families: [判断, 修改, 应用]
+            boss_theme: 句子矩阵
+          - id: chinese.sentences.punctuation
+            name: 标点符号与语气表达
+            stage: g2-g6
+            prerequisites: [chinese.sentences.structure]
+            mastery: [能使用常见标点, 能判断语气作用]
+            item_families: [判断, 修改, 应用]
+            boss_theme: 标点星轨
+          - id: chinese.sentences.rhetoric
+            name: 修辞与表达效果
+            stage: g4-g9
+            prerequisites: [chinese.sentences.structure]
+            mastery: [能识别比喻拟人排比, 能分析表达效果]
+            item_families: [识别, 分析, 应用]
+            boss_theme: 修辞幻镜
+      - id: reading
+        name: 阅读理解
+        nodes:
+          - id: chinese.reading.information_extraction
+            name: 信息提取与概括
+            stage: g2-g6
+            prerequisites: [chinese.sentences.structure]
+            mastery: [能定位关键信息, 能概括段落内容]
+            item_families: [提取, 概括, 应用]
+            boss_theme: 信息沙盘
+          - id: chinese.reading.main_idea
+            name: 主旨、结构与写作意图
+            stage: g4-g9
+            prerequisites: [chinese.reading.information_extraction]
+            mastery: [能概括主旨, 能分析段落作用]
+            item_families: [概括, 分析, 应用]
+            boss_theme: 主旨中枢
+          - id: chinese.reading.inference
+            name: 推断、评价与人物形象
+            stage: g5-g9
+            prerequisites: [chinese.reading.main_idea]
+            mastery: [能依据文本推断, 能评价人物和观点]
+            item_families: [推理, 评价, 迁移]
+            boss_theme: 暗线侦测
+      - id: classical
+        name: 古诗文与传统文化
+        nodes:
+          - id: chinese.classical.recitation
+            name: 古诗文诵读与积累
+            stage: g1-g9
+            prerequisites: [chinese.phonetics.tone_pronunciation]
+            mastery: [能背诵指定篇目, 能理解基本节奏]
+            item_families: [识记, 朗读, 应用]
+            boss_theme: 诗音回廊
+          - id: chinese.classical.translation
+            name: 文言实词、虚词与翻译
+            stage: g7-g9
+            prerequisites: [chinese.classical.recitation, chinese.characters.vocabulary_context]
+            mastery: [能解释常见实词虚词, 能翻译句子]
+            item_families: [识记, 翻译, 推理]
+            boss_theme: 古文石刻
+          - id: chinese.classical.culture_context
+            name: 文学文化常识与情境理解
+            stage: g5-g9
+            prerequisites: [chinese.classical.translation]
+            mastery: [能联系文化背景理解作品, 能识别常见文学常识]
+            item_families: [识记, 分析, 应用]
+            boss_theme: 文明长卷
+      - id: writing
+        name: 写作与表达
+        nodes:
+          - id: chinese.writing.paragraph
+            name: 段落组织与中心句
+            stage: g2-g5
+            prerequisites: [chinese.sentences.structure]
+            mastery: [能围绕中心写段落, 能安排先后顺序]
+            item_families: [组织, 修改, 创作]
+            boss_theme: 段落工坊
+          - id: chinese.writing.narrative
+            name: 记叙文写作
+            stage: g3-g9
+            prerequisites: [chinese.writing.paragraph]
+            mastery: [能写清起因经过结果, 能描写细节]
+            item_families: [构思, 写作, 修改]
+            boss_theme: 叙事剧场
+          - id: chinese.writing.expository
+            name: 说明文写作
+            stage: g5-g9
+            prerequisites: [chinese.writing.paragraph]
+            mastery: [能选择说明方法, 能按顺序说明事物]
+            item_families: [构思, 写作, 修改]
+            boss_theme: 说明蓝图
+          - id: chinese.writing.argumentative
+            name: 议论文写作
+            stage: g8-g9
+            prerequisites: [chinese.writing.expository]
+            mastery: [能提出观点, 能使用论据论证]
+            item_families: [构思, 论证, 修改]
+            boss_theme: 论点议会
+
+  - id: english
+    name: 英语
+    domains:
+      - id: phonics
+        name: 字母与自然拼读
+        nodes:
+          - id: english.phonics.alphabet
+            name: 字母与字母顺序
+            stage: g1-g2
+            prerequisites: []
+            mastery: [能认读字母, 能区分大小写]
+            item_families: [识别, 听辨, 判断]
+            boss_theme: 字母回廊
+          - id: english.phonics.letter_sound
+            name: 字母音与自然拼读
+            stage: g1-g3
+            prerequisites: [english.phonics.alphabet]
+            mastery: [能拼读常见字母组合, 能听音写词]
+            item_families: [拼读, 听辨, 应用]
+            boss_theme: 声音熔炉
+      - id: vocabulary
+        name: 词汇
+        nodes:
+          - id: english.vocabulary.core_words
+            name: 核心词汇与主题词
+            stage: g1-g9
+            prerequisites: [english.phonics.letter_sound]
+            mastery: [能理解主题词, 能在句子中使用]
+            item_families: [识别, 选择, 应用]
+            boss_theme: 词库迷宫
+          - id: english.vocabulary.word_formation
+            name: 构词法与词性变化
+            stage: g6-g9
+            prerequisites: [english.vocabulary.core_words]
+            mastery: [能识别常见词缀, 能判断词性变化]
+            item_families: [识别, 判断, 应用]
+            boss_theme: 构词齿轮
+          - id: english.vocabulary.collocation
+            name: 固定搭配与短语
+            stage: g4-g9
+            prerequisites: [english.vocabulary.core_words]
+            mastery: [能识别固定搭配, 能选择正确短语]
+            item_families: [识别, 选择, 应用]
+            boss_theme: 搭配星桥
+      - id: sentence_grammar
+        name: 句法与语法
+        nodes:
+          - id: english.sentence_grammar.basic_patterns
+            name: 基本句型与语序
+            stage: g3-g6
+            prerequisites: [english.vocabulary.core_words]
+            mastery: [能识别基本句型, 能排列正确语序]
+            item_families: [判断, 排列, 应用]
+            boss_theme: 语序矩阵
+          - id: english.sentence_grammar.tense_aspect
+            name: 时态与体
+            stage: g4-g9
+            prerequisites: [english.sentence_grammar.basic_patterns]
+            mastery: [能区分常用时态, 能根据时间标志选择形式]
+            item_families: [选择, 改写, 应用]
+            boss_theme: 时间裂隙
+          - id: english.sentence_grammar.modals
+            name: 情态动词与语气
+            stage: g6-g9
+            prerequisites: [english.sentence_grammar.tense_aspect]
+            mastery: [能理解情态意义, 能表达请求许可能力]
+            item_families: [选择, 判断, 应用]
+            boss_theme: 语气守卫
+          - id: english.sentence_grammar.clauses
+            name: 从句与连接
+            stage: g7-g9
+            prerequisites: [english.sentence_grammar.tense_aspect]
+            mastery: [能识别从句类型, 能连接句子]
+            item_families: [识别, 改写, 应用]
+            boss_theme: 连接枢纽
+      - id: skills
+        name: 听说读写
+        nodes:
+          - id: english.skills.listening
+            name: 听力理解
+            stage: g1-g9
+            prerequisites: [english.phonics.letter_sound, english.vocabulary.core_words]
+            mastery: [能获取关键信息, 能理解简单对话]
+            item_families: [听辨, 提取, 推断]
+            boss_theme: 声波暗室
+          - id: english.skills.speaking
+            name: 口语表达
+            stage: g1-g9
+            prerequisites: [english.sentence_grammar.basic_patterns]
+            mastery: [能完成交际任务, 能进行连贯表达]
+            item_families: [问答, 描述, 表达]
+            boss_theme: 交流广场
+          - id: english.skills.reading
+            name: 阅读策略
+            stage: g3-g9
+            prerequisites: [english.vocabulary.collocation, english.sentence_grammar.tense_aspect]
+            mastery: [能略读寻读, 能理解主旨和细节]
+            item_families: [提取, 推断, 概括]
+            boss_theme: 文本密室
+          - id: english.skills.writing
+            name: 写作表达
+            stage: g4-g9
+            prerequisites: [english.sentence_grammar.clauses]
+            mastery: [能写段落, 能表达观点和理由]
+            item_families: [组织, 写作, 修改]
+            boss_theme: 写作终端
+          - id: english.skills.discourse
+            name: 语篇理解与综合交际
+            stage: g7-g9
+            prerequisites: [english.skills.reading, english.skills.writing]
+            mastery: [能理解篇章结构, 能完成综合交际任务]
+            item_families: [综合, 推理, 迁移]
+            boss_theme: 综合国境
+
+  - id: science
+    name: 科学
+    domains:
+      - id: inquiry
+        name: 科学探究
+        nodes:
+          - id: science.inquiry.observation_measurement
+            name: 观察、测量与记录
+            stage: g1-g6
+            prerequisites: []
+            mastery: [能使用简单仪器, 能记录观察结果]
+            item_families: [操作, 判断, 应用]
+            boss_theme: 观察台
+          - id: science.inquiry.variables
+            name: 变量控制与实验设计
+            stage: g4-g6
+            prerequisites: [science.inquiry.observation_measurement]
+            mastery: [能识别变量, 能设计公平实验]
+            item_families: [识别, 设计, 判断]
+            boss_theme: 对照实验舱
+      - id: matter_energy
+        name: 物质与能量
+        nodes:
+          - id: science.matter_energy.matter_properties
+            name: 物质性质与状态变化
+            stage: g2-g6
+            prerequisites: [science.inquiry.observation_measurement]
+            mastery: [能描述物质性质, 能解释状态变化]
+            item_families: [识别, 判断, 应用]
+            boss_theme: 物态工坊
+          - id: science.matter_energy.forces_motion
+            name: 力与运动
+            stage: g2-g6
+            prerequisites: [science.inquiry.variables]
+            mastery: [能描述力的作用, 能解释常见运动变化]
+            item_families: [识别, 判断, 应用]
+            boss_theme: 力学跑道
+          - id: science.matter_energy.energy
+            name: 能量形式与转化
+            stage: g3-g6
+            prerequisites: [science.matter_energy.forces_motion]
+            mastery: [能识别能量形式, 能说明能量转化]
+            item_families: [识别, 判断, 应用]
+            boss_theme: 能量环流
+      - id: life
+        name: 生命科学
+        nodes:
+          - id: science.life.characteristics
+            name: 生物特征与基本需求
+            stage: g1-g4
+            prerequisites: [science.inquiry.observation_measurement]
+            mastery: [能区分生物非生物, 能说明生物基本需求]
+            item_families: [识别, 判断, 应用]
+            boss_theme: 生命苗圃
+          - id: science.life.life_cycles
+            name: 生命周期与繁殖
+            stage: g2-g6
+            prerequisites: [science.life.characteristics]
+            mastery: [能描述生长过程, 能比较繁殖方式]
+            item_families: [排序, 判断, 应用]
+            boss_theme: 生长年轮
+          - id: science.life.ecosystem
+            name: 食物链与生态系统
+            stage: g3-g6
+            prerequisites: [science.life.life_cycles]
+            mastery: [能构建食物链, 能解释生态平衡]
+            item_families: [建模, 推理, 应用]
+            boss_theme: 生态穹顶
+      - id: earth_space
+        name: 地球与宇宙
+        nodes:
+          - id: science.earth_space.earth_system
+            name: 地球圈层与自然现象
+            stage: g2-g6
+            prerequisites: [science.inquiry.observation_measurement]
+            mastery: [能识别地球圈层, 能解释常见自然现象]
+            item_families: [识别, 判断, 应用]
+            boss_theme: 地球剖面
+          - id: science.earth_space.space
+            name: 太阳系与昼夜四季
+            stage: g2-g6
+            prerequisites: [science.earth_space.earth_system]
+            mastery: [能描述太阳系, 能解释昼夜四季]
+            item_families: [识别, 推理, 应用]
+            boss_theme: 星轨观测站
+      - id: engineering
+        name: 工程与技术
+        nodes:
+          - id: science.engineering.design
+            name: 工程设计流程
+            stage: g3-g6
+            prerequisites: [science.inquiry.variables]
+            mastery: [能定义问题, 能设计并改进方案]
+            item_families: [设计, 评价, 迭代]
+            boss_theme: 工程试验场
+
+  - id: physics
+    name: 物理
+    domains:
+      - id: measurement_motion
+        name: 测量与运动
+        nodes:
+          - id: physics.measurement_motion.measurement
+            name: 物理量与测量
+            stage: g8
+            prerequisites: []
+            mastery: [能选择单位, 能处理有效数字和误差]
+            item_families: [计算, 判断, 操作]
+            boss_theme: 测量基准室
+          - id: physics.measurement_motion.motion_description
+            name: 运动描述
+            stage: g8
+            prerequisites: [physics.measurement_motion.measurement]
+            mastery: [能区分路程位移, 能理解速度加速度]
+            item_families: [计算, 图象, 应用]
+            boss_theme: 速度轨道
+          - id: physics.measurement_motion.newton_laws
+            name: 牛顿运动定律
+            stage: g8-g9
+            prerequisites: [physics.measurement_motion.motion_description]
+            mastery: [能分析受力, 能应用牛顿定律]
+            item_families: [建模, 计算, 推理]
+            boss_theme: 力学王庭
+      - id: force_pressure
+        name: 力与压强
+        nodes:
+          - id: physics.force_pressure.simple_machines
+            name: 简单机械与平衡
+            stage: g8
+            prerequisites: [physics.measurement_motion.newton_laws]
+            mastery: [能分析杠杆滑轮, 能判断平衡条件]
+            item_families: [计算, 判断, 应用]
+            boss_theme: 机械天平
+          - id: physics.force_pressure.pressure_float
+            name: 压强与浮力
+            stage: g8-g9
+            prerequisites: [physics.measurement_motion.newton_laws]
+            mastery: [能计算压强浮力, 能判断浮沉条件]
+            item_families: [计算, 推理, 应用]
+            boss_theme: 浮力深渊
+      - id: energy_thermal
+        name: 功、能与热
+        nodes:
+          - id: physics.energy_thermal.work_energy
+            name: 功和机械能
+            stage: g8-g9
+            prerequisites: [physics.measurement_motion.newton_laws]
+            mastery: [能计算功和能, 能分析能量转化]
+            item_families: [计算, 推理, 应用]
+            boss_theme: 能量引擎
+          - id: physics.energy_thermal.power_efficiency
+            name: 功率与效率
+            stage: g8-g9
+            prerequisites: [physics.energy_thermal.work_energy]
+            mastery: [能计算功率效率, 能评价能量损失]
+            item_families: [计算, 评价, 应用]
+            boss_theme: 效率核心
+          - id: physics.energy_thermal.thermal
+            name: 内能与热传递
+            stage: g8-g9
+            prerequisites: [physics.energy_thermal.work_energy]
+            mastery: [能解释热传递, 能计算热量变化]
+            item_families: [判断, 计算, 应用]
+            boss_theme: 热力熔炉
+      - id: waves_optics
+        name: 声、光与波
+        nodes:
+          - id: physics.waves_optics.sound
+            name: 声音与声波
+            stage: g8
+            prerequisites: [physics.measurement_motion.motion_description]
+            mastery: [能说明声音产生传播, 能分析音调响度]
+            item_families: [判断, 推理, 应用]
+            boss_theme: 回声长廊
+          - id: physics.waves_optics.light
+            name: 光的传播与成像
+            stage: g8
+            prerequisites: [physics.measurement_motion.motion_description]
+            mastery: [能理解反射折射, 能分析成像]
+            item_families: [作图, 推理, 应用]
+            boss_theme: 光棱镜城
+          - id: physics.waves_optics.wave_basics
+            name: 波的基本特征
+            stage: g9
+            prerequisites: [physics.waves_optics.sound, physics.waves_optics.light]
+            mastery: [能描述波长频率, 能解决波传播问题]
+            item_families: [计算, 图象, 应用]
+            boss_theme: 波频矩阵
+      - id: electricity_magnetism
+        name: 电与磁
+        nodes:
+          - id: physics.electricity_magnetism.circuits
+            name: 电路基础
+            stage: g9
+            prerequisites: [physics.energy_thermal.power_efficiency]
+            mastery: [能连接电路, 能分析电流电压电阻]
+            item_families: [作图, 计算, 判断]
+            boss_theme: 电路迷宫
+          - id: physics.electricity_magnetism.ohm_law
+            name: 欧姆定律与电功率
+            stage: g9
+            prerequisites: [physics.electricity_magnetism.circuits]
+            mastery: [能应用欧姆定律, 能计算电功率]
+            item_families: [计算, 推理, 应用]
+            boss_theme: 电流王座
+          - id: physics.electricity_magnetism.magnetism
+            name: 磁场与电磁感应
+            stage: g9
+            prerequisites: [physics.electricity_magnetism.circuits]
+            mastery: [能判断磁场方向, 能理解电磁感应]
+            item_families: [判断, 作图, 应用]
+            boss_theme: 磁极回旋
+
+  - id: chemistry
+    name: 化学
+    domains:
+      - id: matter_particles
+        name: 物质与微粒
+        nodes:
+          - id: chemistry.matter_particles.lab_safety
+            name: 实验安全与基本操作
+            stage: g9
+            prerequisites: []
+            mastery: [能识别安全风险, 能规范使用仪器]
+            item_families: [识别, 判断, 操作]
+            boss_theme: 安全实验舱
+          - id: chemistry.matter_particles.states
+            name: 物质状态与变化
+            stage: g9
+            prerequisites: [chemistry.matter_particles.lab_safety]
+            mastery: [能区分物理化学变化, 能解释状态变化]
+            item_families: [判断, 解释, 应用]
+            boss_theme: 物态裂变室
+          - id: chemistry.matter_particles.particles
+            name: 分子、原子与离子
+            stage: g9
+            prerequisites: [chemistry.matter_particles.states]
+            mastery: [能说明微粒构成, 能区分离子原子]
+            item_families: [识别, 判断, 应用]
+            boss_theme: 微粒显微镜
+      - id: symbols_formulas
+        name: 符号与化学式
+        nodes:
+          - id: chemistry.symbols_formulas.elements
+            name: 元素与元素周期表
+            stage: g9
+            prerequisites: [chemistry.matter_particles.particles]
+            mastery: [能识别常见元素, 能使用元素符号]
+            item_families: [识记, 判断, 应用]
+            boss_theme: 元素方阵
+          - id: chemistry.symbols_formulas.formulas
+            name: 化合价与化学式
+            stage: g9
+            prerequisites: [chemistry.symbols_formulas.elements]
+            mastery: [能判断化合价, 能书写化学式]
+            item_families: [计算, 书写, 判断]
+            boss_theme: 化合价天平
+          - id: chemistry.symbols_formulas.equations
+            name: 化学方程式与配平
+            stage: g9
+            prerequisites: [chemistry.symbols_formulas.formulas]
+            mastery: [能书写方程式, 能完成配平]
+            item_families: [书写, 计算, 判断]
+            boss_theme: 方程式熔炉
+      - id: reactions
+        name: 化学反应
+        nodes:
+          - id: chemistry.reactions.types
+            name: 常见反应类型
+            stage: g9
+            prerequisites: [chemistry.symbols_formulas.equations]
+            mastery: [能判断反应类型, 能预测生成物]
+            item_families: [判断, 推理, 应用]
+            boss_theme: 反应编码室
+          - id: chemistry.reactions.mass_conservation
+            name: 质量守恒与简单计算
+            stage: g9
+            prerequisites: [chemistry.symbols_formulas.equations]
+            mastery: [能解释守恒, 能完成化学计量计算]
+            item_families: [计算, 解释, 应用]
+            boss_theme: 守恒核心
+          - id: chemistry.reactions.solutions
+            name: 溶液、溶解度与浓度
+            stage: g9
+            prerequisites: [chemistry.reactions.mass_conservation]
+            mastery: [能判断饱和, 能计算质量分数]
+            item_families: [计算, 判断, 应用]
+            boss_theme: 溶液王庭
+      - id: acids_metals
+        name: 酸碱盐与金属
+        nodes:
+          - id: chemistry.acids_metals.acid_base
+            name: 酸碱性与中和反应
+            stage: g9
+            prerequisites: [chemistry.reactions.solutions]
+            mastery: [能判断酸碱性, 能解释中和反应]
+            item_families: [判断, 实验, 应用]
+            boss_theme: 酸碱双塔
+          - id: chemistry.acids_metals.metals
+            name: 金属活动性与置换反应
+            stage: g9
+            prerequisites: [chemistry.reactions.types]
+            mastery: [能比较金属活动性, 能判断置换反应]
+            item_families: [排序, 判断, 应用]
+            boss_theme: 金属竞技场
+          - id: chemistry.acids_metals.salts
+            name: 盐与常见离子检验
+            stage: g9
+            prerequisites: [chemistry.acids_metals.acid_base]
+            mastery: [能识别常见盐, 能设计离子检验]
+            item_families: [识别, 实验, 推理]
+            boss_theme: 离子鉴定台
+          - id: chemistry.acids_metals.carbon_compounds
+            name: 碳与常见有机基础
+            stage: g9
+            prerequisites: [chemistry.reactions.types]
+            mastery: [能识别碳单质和氧化物, 能了解基本有机物]
+            item_families: [识别, 判断, 应用]
+            boss_theme: 碳链密室
+
+  - id: biology
+    name: 生物
+    domains:
+      - id: cells
+        name: 细胞与生命基础
+        nodes:
+          - id: biology.cells.cell_structure
+            name: 细胞结构与功能
+            stage: g7
+            prerequisites: []
+            mastery: [能识别细胞结构, 能说明结构功能]
+            item_families: [识别, 判断, 应用]
+            boss_theme: 细胞穹顶
+          - id: biology.cells.cell_division
+            name: 细胞分裂与分化
+            stage: g7
+            prerequisites: [biology.cells.cell_structure]
+            mastery: [能描述分裂过程, 能解释分化意义]
+            item_families: [排序, 判断, 应用]
+            boss_theme: 分裂车间
+      - id: plants
+        name: 植物生命活动
+        nodes:
+          - id: biology.plants.structure
+            name: 植物结构层次
+            stage: g7
+            prerequisites: [biology.cells.cell_division]
+            mastery: [能区分组织器官, 能说明结构适应]
+            item_families: [识别, 判断, 应用]
+            boss_theme: 根系王国
+          - id: biology.plants.photosynthesis
+            name: 光合作用与呼吸作用
+            stage: g7
+            prerequisites: [biology.plants.structure]
+            mastery: [能写出过程, 能分析影响因素]
+            item_families: [识记, 实验, 应用]
+            boss_theme: 叶绿体熔炉
+      - id: human_body
+        name: 人体系统
+        nodes:
+          - id: biology.human_body.digestion
+            name: 消化与营养
+            stage: g7
+            prerequisites: [biology.cells.cell_structure]
+            mastery: [能描述消化路径, 能分析营养需求]
+            item_families: [排序, 判断, 应用]
+            boss_theme: 营养流水线
+          - id: biology.human_body.respiration
+            name: 呼吸与气体交换
+            stage: g7
+            prerequisites: [biology.human_body.digestion]
+            mastery: [能说明呼吸过程, 能解释气体交换]
+            item_families: [识别, 推理, 应用]
+            boss_theme: 肺泡风箱
+          - id: biology.human_body.circulation
+            name: 血液循环
+            stage: g7
+            prerequisites: [biology.human_body.respiration]
+            mastery: [能说明循环路径, 能区分动脉静脉]
+            item_families: [排序, 判断, 应用]
+            boss_theme: 循环中枢
+          - id: biology.human_body.nervous
+            name: 神经调节与感觉
+            stage: g7-g8
+            prerequisites: [biology.human_body.circulation]
+            mastery: [能说明反射弧, 能解释感觉形成]
+            item_families: [排序, 推理, 应用]
+            boss_theme: 神经回路
+          - id: biology.human_body.immune
+            name: 免疫与健康
+            stage: g8
+            prerequisites: [biology.human_body.circulation]
+            mastery: [能区分免疫类型, 能解释疫苗作用]
+            item_families: [判断, 推理, 应用]
+            boss_theme: 免疫防线
+      - id: reproduction_genetics
+        name: 生殖、遗传与进化
+        nodes:
+          - id: biology.reproduction_genetics.reproduction
+            name: 生殖与发育
+            stage: g7-g8
+            prerequisites: [biology.cells.cell_division]
+            mastery: [能区分有性无性生殖, 能描述发育过程]
+            item_families: [判断, 排序, 应用]
+            boss_theme: 生命起点
+          - id: biology.reproduction_genetics.genetics
+            name: 遗传与变异
+            stage: g8
+            prerequisites: [biology.reproduction_genetics.reproduction]
+            mastery: [能解释显隐性, 能分析遗传图谱]
+            item_families: [推理, 计算, 应用]
+            boss_theme: 基因螺旋
+          - id: biology.reproduction_genetics.evolution
+            name: 生物进化
+            stage: g8
+            prerequisites: [biology.reproduction_genetics.genetics]
+            mastery: [能解释自然选择, 能分析适应现象]
+            item_families: [判断, 推理, 应用]
+            boss_theme: 进化长河
+      - id: ecology
+        name: 生态与健康
+        nodes:
+          - id: biology.ecology.ecosystem
+            name: 生态系统与食物网
+            stage: g7-g8
+            prerequisites: [biology.plants.photosynthesis]
+            mastery: [能构建食物网, 能分析能量流动]
+            item_families: [建模, 推理, 应用]
+            boss_theme: 生态穹顶
+          - id: biology.ecology.biodiversity
+            name: 生物多样性与保护
+            stage: g8
+            prerequisites: [biology.ecology.ecosystem]
+            mastery: [能说明多样性价值, 能提出保护措施]
+            item_families: [判断, 评价, 应用]
+            boss_theme: 物种方舟
+          - id: biology.ecology.health
+            name: 健康生活与疾病预防
+            stage: g7-g8
+            prerequisites: [biology.human_body.immune]
+            mastery: [能分析健康风险, 能提出预防方案]
+            item_families: [判断, 方案, 应用]
+            boss_theme: 健康守门
+
+  - id: history
+    name: 历史
+    domains:
+      - id: historical_method
+        name: 历史方法与时空
+        nodes:
+          - id: history.historical_method.timeline
+            name: 时间轴与历史分期
+            stage: g7-g9
+            prerequisites: []
+            mastery: [能排列历史事件, 能识别时代特征]
+            item_families: [排序, 判断, 应用]
+            boss_theme: 时间走廊
+          - id: history.historical_method.maps
+            name: 历史地图与空间变化
+            stage: g7-g9
+            prerequisites: [history.historical_method.timeline]
+            mastery: [能读历史地图, 能解释疆域变化]
+            item_families: [读图, 推理, 应用]
+            boss_theme: 疆域沙盘
+          - id: history.historical_method.sources
+            name: 史料实证与历史解释
+            stage: g8-g9
+            prerequisites: [history.historical_method.maps]
+            mastery: [能区分史料类型, 能依据史料解释]
+            item_families: [判断, 分析, 论证]
+            boss_theme: 史料档案库
+      - id: ancient_china
+        name: 中国古代史
+        nodes:
+          - id: history.ancient_china.early_civilization
+            name: 中华文明起源与早期国家
+            stage: g7
+            prerequisites: [history.historical_method.timeline]
+            mastery: [能描述文明起源, 能说明早期国家特征]
+            item_families: [识记, 判断, 分析]
+            boss_theme: 文明曙光
+          - id: history.ancient_china.empires
+            name: 秦汉统一与帝国治理
+            stage: g7
+            prerequisites: [history.ancient_china.early_civilization]
+            mastery: [能分析统一措施, 能评价制度影响]
+            item_families: [分析, 评价, 论证]
+            boss_theme: 帝国中枢
+          - id: history.ancient_china.medieval
+            name: 隋唐至明清的制度与经济
+            stage: g7
+            prerequisites: [history.ancient_china.empires]
+            mastery: [能分析制度演变, 能解释经济发展]
+            item_families: [分析, 比较, 论证]
+            boss_theme: 盛世与变革
+          - id: history.ancient_china.culture_exchange
+            name: 古代文化、民族与对外交流
+            stage: g7
+            prerequisites: [history.ancient_china.medieval]
+            mastery: [能说明文化交流, 能分析民族交融]
+            item_families: [分析, 比较, 应用]
+            boss_theme: 丝路长卷
+      - id: modern_china
+        name: 中国近现代史
+        nodes:
+          - id: history.modern_china.late_qing
+            name: 晚清危机与近代化探索
+            stage: g8
+            prerequisites: [history.ancient_china.medieval]
+            mastery: [能分析危机原因, 能比较近代化探索]
+            item_families: [分析, 比较, 论证]
+            boss_theme: 变局之门
+          - id: history.modern_china.revolution
+            name: 民主革命与民族独立
+            stage: g8
+            prerequisites: [history.modern_china.late_qing]
+            mastery: [能梳理革命进程, 能解释历史选择]
+            item_families: [排序, 分析, 论证]
+            boss_theme: 革命风暴
+          - id: history.modern_china.construction
+            name: 现代中国建设与改革开放
+            stage: g8
+            prerequisites: [history.modern_china.revolution]
+            mastery: [能分析建设成就, 能解释改革影响]
+            item_families: [分析, 评价, 应用]
+            boss_theme: 改革引擎
+      - id: world_history
+        name: 世界史
+        nodes:
+          - id: history.world_history.ancient_world
+            name: 古代世界文明
+            stage: g9
+            prerequisites: [history.historical_method.timeline]
+            mastery: [能比较文明特征, 能解释交流影响]
+            item_families: [比较, 分析, 应用]
+            boss_theme: 文明群像
+          - id: history.world_history.early_modern
+            name: 文艺复兴、新航路与早期殖民
+            stage: g9
+            prerequisites: [history.world_history.ancient_world]
+            mastery: [能分析思想解放, 能解释全球联系]
+            item_families: [分析, 因果, 论证]
+            boss_theme: 大洋航路
+          - id: history.world_history.revolutions
+            name: 资产阶级革命与工业革命
+            stage: g9
+            prerequisites: [history.world_history.early_modern]
+            mastery: [能分析制度变革, 能解释工业化影响]
+            item_families: [分析, 比较, 论证]
+            boss_theme: 蒸汽纪元
+          - id: history.world_history.world_wars
+            name: 两次世界大战与战后格局
+            stage: g9
+            prerequisites: [history.world_history.revolutions]
+            mastery: [能梳理战争进程, 能分析国际格局]
+            item_families: [排序, 分析, 论证]
+            boss_theme: 战火地图
+          - id: history.world_history.cold_war_globalization
+            name: 冷战与全球化
+            stage: g9
+            prerequisites: [history.world_history.world_wars]
+            mastery: [能解释冷战结构, 能分析全球化影响]
+            item_families: [分析, 评价, 应用]
+            boss_theme: 两极与网络
+
+  - id: geography
+    name: 地理
+    domains:
+      - id: earth_maps
+        name: 地球与地图
+        nodes:
+          - id: geography.earth_maps.earth_shape
+            name: 地球形状、经纬网与自转公转
+            stage: g7
+            prerequisites: []
+            mastery: [能使用经纬网, 能解释昼夜四季]
+            item_families: [识别, 推理, 应用]
+            boss_theme: 地球坐标
+          - id: geography.earth_maps.maps
+            name: 地图三要素与等高线
+            stage: g7
+            prerequisites: [geography.earth_maps.earth_shape]
+            mastery: [能读比例尺方向图例, 能判读等高线]
+            item_families: [读图, 计算, 应用]
+            boss_theme: 地形沙盘
+      - id: physical_geography
+        name: 自然地理
+        nodes:
+          - id: geography.physical_geography.atmosphere
+            name: 大气运动与天气气候
+            stage: g7-g8
+            prerequisites: [geography.earth_maps.earth_shape]
+            mastery: [能解释天气变化, 能分析气候因素]
+            item_families: [读图, 因果, 应用]
+            boss_theme: 大气环流
+          - id: geography.physical_geography.water
+            name: 水循环与水资源
+            stage: g7-g8
+            prerequisites: [geography.physical_geography.atmosphere]
+            mastery: [能说明水循环, 能评价水资源利用]
+            item_families: [流程, 分析, 应用]
+            boss_theme: 水脉循环
+          - id: geography.physical_geography.landforms
+            name: 地貌与地质作用
+            stage: g7-g8
+            prerequisites: [geography.earth_maps.maps]
+            mastery: [能识别地貌, 能解释形成过程]
+            item_families: [识别, 因果, 应用]
+            boss_theme: 地貌锻造
+          - id: geography.physical_geography.soil_vegetation
+            name: 土壤与植被
+            stage: g8
+            prerequisites: [geography.physical_geography.landforms]
+            mastery: [能分析土壤形成, 能解释植被分布]
+            item_families: [分析, 读图, 应用]
+            boss_theme: 土壤植被带
+      - id: human_geography
+        name: 人文地理
+        nodes:
+          - id: geography.human_geography.population
+            name: 人口分布与迁移
+            stage: g8
+            prerequisites: [geography.earth_maps.maps]
+            mastery: [能分析人口分布, 能解释迁移原因]
+            item_families: [读图, 因果, 应用]
+            boss_theme: 人口星图
+          - id: geography.human_geography.urbanization
+            name: 城市与城市化
+            stage: g8
+            prerequisites: [geography.human_geography.population]
+            mastery: [能分析城市区位, 能评价城市化问题]
+            item_families: [分析, 评价, 应用]
+            boss_theme: 城市中枢
+          - id: geography.human_geography.economy
+            name: 农业、工业与区位
+            stage: g8
+            prerequisites: [geography.human_geography.urbanization]
+            mastery: [能分析产业区位, 能比较区域差异]
+            item_families: [分析, 比较, 应用]
+            boss_theme: 产业棋局
+          - id: geography.human_geography.transport_trade
+            name: 交通、贸易与区域联系
+            stage: g8
+            prerequisites: [geography.human_geography.economy]
+            mastery: [能分析交通布局, 能解释区域联系]
+            item_families: [读图, 分析, 应用]
+            boss_theme: 全球航线
+      - id: regional_geography
+        name: 区域地理
+        nodes:
+          - id: geography.regional_geography.china
+            name: 中国自然与人文地理
+            stage: g8
+            prerequisites: [geography.physical_geography.landforms, geography.human_geography.economy]
+            mastery: [能比较中国区域差异, 能分析发展条件]
+            item_families: [比较, 分析, 应用]
+            boss_theme: 中国地形沙盘
+          - id: geography.regional_geography.world_regions
+            name: 世界主要地区与国家
+            stage: g8-g9
+            prerequisites: [geography.regional_geography.china]
+            mastery: [能识别区域特征, 能分析区域联系]
+            item_families: [识别, 比较, 应用]
+            boss_theme: 世界区域图
+          - id: geography.regional_geography.sustainability
+            name: 资源环境与可持续发展
+            stage: g8-g9
+            prerequisites: [geography.regional_geography.world_regions]
+            mastery: [能评价资源环境问题, 能提出可持续方案]
+            item_families: [评价, 方案, 迁移]
+            boss_theme: 可持续天平
+
+  - id: politics
+    name: 道德与法治及思想政治
+    domains:
+      - id: self_society
+        name: 自我、家庭与社会
+        nodes:
+          - id: politics.self_society.self_family
+            name: 自我认知与家庭责任
+            stage: g1-g6
+            prerequisites: []
+            mastery: [能认识自我, 能承担家庭责任]
+            item_families: [判断, 情境, 应用]
+            boss_theme: 成长起点
+          - id: politics.self_society.school_community
+            name: 学校、社区与公共生活
+            stage: g1-g6
+            prerequisites: [politics.self_society.self_family]
+            mastery: [能遵守公共规则, 能参与集体生活]
+            item_families: [判断, 情境, 方案]
+            boss_theme: 公共广场
+          - id: politics.self_society.network_ethics
+            name: 网络生活与媒介素养
+            stage: g4-g9
+            prerequisites: [politics.self_society.school_community]
+            mastery: [能判断网络信息, 能遵守网络伦理]
+            item_families: [判断, 辨析, 应用]
+            boss_theme: 信息洪流
+      - id: rules_law
+        name: 规则、法律与公民
+        nodes:
+          - id: politics.rules_law.rules_order
+            name: 规则、秩序与法治意识
+            stage: g1-g9
+            prerequisites: [politics.self_society.school_community]
+            mastery: [能理解规则作用, 能分析秩序问题]
+            item_families: [判断, 分析, 情境]
+            boss_theme: 规则之城
+          - id: politics.rules_law.constitution
+            name: 宪法与公民权利义务
+            stage: g8-g9
+            prerequisites: [politics.rules_law.rules_order]
+            mastery: [能说明宪法地位, 能辨析权利义务]
+            item_families: [识记, 辨析, 应用]
+            boss_theme: 宪法核心
+          - id: politics.rules_law.law_life
+            name: 法律与未成年人保护
+            stage: g6-g9
+            prerequisites: [politics.rules_law.rules_order]
+            mastery: [能判断违法行为, 能使用保护途径]
+            item_families: [判断, 情境, 应用]
+            boss_theme: 法律防线
+      - id: society_economy
+        name: 社会与经济
+        nodes:
+          - id: politics.society_economy.social_order
+            name: 社会公平、责任与互助
+            stage: g6-g9
+            prerequisites: [politics.rules_law.law_life]
+            mastery: [能分析公平问题, 能提出责任方案]
+            item_families: [辨析, 分析, 方案]
+            boss_theme: 公平天平
+          - id: politics.society_economy.economy_basics
+            name: 基本经济制度与市场经济
+            stage: g9
+            prerequisites: [politics.society_economy.social_order]
+            mastery: [能理解市场机制, 能分析经济现象]
+            item_families: [判断, 分析, 应用]
+            boss_theme: 市场引擎
+          - id: politics.society_economy.consumption
+            name: 消费、理财与劳动
+            stage: g7-g9
+            prerequisites: [politics.society_economy.economy_basics]
+            mastery: [能理性消费, 能理解劳动价值]
+            item_families: [情境, 判断, 方案]
+            boss_theme: 资源配置站
+      - id: politics_culture
+        name: 政治、文化与全球视野
+        nodes:
+          - id: politics.politics_culture.national_system
+            name: 国家制度与国家治理
+            stage: g8-g9
+            prerequisites: [politics.rules_law.constitution]
+            mastery: [能说明国家制度, 能分析治理实践]
+            item_families: [识记, 分析, 应用]
+            boss_theme: 治理中枢
+          - id: politics.politics_culture.culture_values
+            name: 文化传承与价值判断
+            stage: g6-g9
+            prerequisites: [politics.self_society.self_family]
+            mastery: [能辨析文化价值, 能评价社会现象]
+            item_families: [辨析, 评价, 应用]
+            boss_theme: 价值灯塔
+          - id: politics.politics_culture.global_governance
+            name: 国际关系与全球治理
+            stage: g9
+            prerequisites: [politics.politics_culture.national_system]
+            mastery: [能分析国际关系, 能理解全球治理议题]
+            item_families: [分析, 评价, 方案]
+            boss_theme: 全球议会
+
+  - id: information_technology
+    name: 信息科技
+    domains:
+      - id: digital_basics
+        name: 数字设备与数据
+        nodes:
+          - id: information_technology.digital_basics.computer
+            name: 计算机与操作系统基础
+            stage: g1-g9
+            prerequisites: []
+            mastery: [能操作数字设备, 能管理文件和程序]
+            item_families: [操作, 判断, 应用]
+            boss_theme: 系统主控台
+          - id: information_technology.digital_basics.encoding
+            name: 数据编码与表示
+            stage: g4-g9
+            prerequisites: [information_technology.digital_basics.computer]
+            mastery: [能理解二进制, 能解释文本图像编码]
+            item_families: [识别, 计算, 应用]
+            boss_theme: 编码矩阵
+          - id: information_technology.digital_basics.network
+            name: 网络与互联网协议
+            stage: g4-g9
+            prerequisites: [information_technology.digital_basics.computer]
+            mastery: [能解释网络连接, 能识别常见协议]
+            item_families: [识别, 判断, 应用]
+            boss_theme: 网络节点
+      - id: algorithms
+        name: 算法与编程
+        nodes:
+          - id: information_technology.algorithms.algorithm_basics
+            name: 算法概念与流程
+            stage: g3-g9
+            prerequisites: [information_technology.digital_basics.computer]
+            mastery: [能描述步骤, 能使用流程控制]
+            item_families: [排序, 设计, 判断]
+            boss_theme: 流程迷宫
+          - id: information_technology.algorithms.programming
+            name: 编程基础
+            stage: g4-g9
+            prerequisites: [information_technology.algorithms.algorithm_basics]
+            mastery: [能读写变量条件循环, 能调试简单程序]
+            item_families: [编写, 调试, 应用]
+            boss_theme: 代码核心
+          - id: information_technology.algorithms.decomposition
+            name: 问题分解与模式识别
+            stage: g4-g9
+            prerequisites: [information_technology.algorithms.algorithm_basics]
+            mastery: [能拆分问题, 能识别重复模式]
+            item_families: [设计, 推理, 迁移]
+            boss_theme: 模块工坊
+      - id: data_ai
+        name: 数据、人工智能与安全
+        nodes:
+          - id: information_technology.data_ai.data_analysis
+            name: 数据整理与可视化
+            stage: g5-g9
+            prerequisites: [information_technology.digital_basics.encoding]
+            mastery: [能整理数据, 能选择图表表达]
+            item_families: [操作, 分析, 应用]
+            boss_theme: 数据控制台
+          - id: information_technology.data_ai.database
+            name: 数据库与检索
+            stage: g7-g9
+            prerequisites: [information_technology.data_ai.data_analysis]
+            mastery: [能理解表结构, 能完成简单查询]
+            item_families: [操作, 查询, 应用]
+            boss_theme: 数据仓库
+          - id: information_technology.data_ai.ai_basics
+            name: 人工智能基础
+            stage: g7-g9
+            prerequisites: [information_technology.data_ai.data_analysis]
+            mastery: [能说明训练推理, 能评价模型局限]
+            item_families: [识别, 判断, 评价]
+            boss_theme: 智能中枢
+          - id: information_technology.data_ai.cybersecurity
+            name: 网络安全与隐私保护
+            stage: g4-g9
+            prerequisites: [information_technology.digital_basics.network]
+            mastery: [能识别安全风险, 能保护个人隐私]
+            item_families: [判断, 方案, 应用]
+            boss_theme: 安全防火墙
+          - id: information_technology.data_ai.digital_citizenship
+            name: 数字公民与伦理
+            stage: g5-g9
+            prerequisites: [information_technology.data_ai.cybersecurity]
+            mastery: [能遵守数字伦理, 能负责任地使用技术]
+            item_families: [辨析, 评价, 应用]
+            boss_theme: 数字公民广场
+          - id: information_technology.data_ai.project
+            name: 综合数字项目
+            stage: g6-g9
+            prerequisites: [information_technology.algorithms.programming, information_technology.data_ai.database]
+            mastery: [能设计作品, 能协作迭代]
+            item_families: [设计, 实现, 评价]
+            boss_theme: 创新工场

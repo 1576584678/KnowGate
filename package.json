@@ -1,0 +1,18 @@
+{
+  "name": "knowgate",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @knowgate/web",
+    "build": "npm run build --workspace @knowgate/web",
+    "lint": "npm run lint --workspace @knowgate/web",
+    "test": "npm run test --workspace @knowgate/domain"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

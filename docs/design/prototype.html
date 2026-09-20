@@ -1,0 +1,2704 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>知关 KnowGate UX/UI 原型</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --color-primary: #2563eb;
+      --color-primary-strong: #1d4ed8;
+      --color-on-primary: #ffffff;
+      --color-secondary: #f59e0b;
+      --color-on-secondary: #0f172a;
+      --color-accent: #ec4899;
+      --color-on-accent: #0f172a;
+      --color-background: #eef6ff;
+      --color-surface: #ffffff;
+      --color-surface-soft: #f7fbff;
+      --color-foreground: #0f172a;
+      --color-muted: #5b6475;
+      --color-border: #d8e3f4;
+      --color-success: #16a34a;
+      --color-on-success: #ffffff;
+      --color-info: #0ea5e9;
+      --color-warning: #d97706;
+      --color-destructive: #dc2626;
+      --color-on-destructive: #ffffff;
+      --color-locked: #64748b;
+      --color-reward: #f59e0b;
+      --color-focus: #2563eb;
+      --font-display: "Baloo 2", "Noto Sans SC", "PingFang SC",
+        "Microsoft YaHei UI", sans-serif;
+      --font-body: "Noto Sans SC", "PingFang SC", "Microsoft YaHei UI",
+        system-ui, sans-serif;
+      --font-number: "Baloo 2", "DIN Alternate", "Arial Rounded MT Bold",
+        sans-serif;
+      --text-xs: 12px;
+      --text-sm: 14px;
+      --text-md: 16px;
+      --text-lg: 18px;
+      --text-xl: 22px;
+      --text-2xl: 28px;
+      --text-3xl: 34px;
+      --space-1: 4px;
+      --space-2: 8px;
+      --space-3: 12px;
+      --space-4: 16px;
+      --space-5: 20px;
+      --space-6: 24px;
+      --space-8: 32px;
+      --space-10: 40px;
+      --space-12: 48px;
+      --radius-control: 10px;
+      --radius-panel: 12px;
+      --radius-game-object: 18px;
+      --shadow-clay:
+        inset 0 2px 0 rgba(255, 255, 255, 0.82),
+        inset 0 -3px 0 rgba(15, 23, 42, 0.08),
+        0 8px 18px rgba(37, 99, 235, 0.12);
+      --shadow-panel: 0 8px 22px rgba(15, 23, 42, 0.08);
+      --motion-fast: 150ms;
+      --motion-standard: 220ms;
+      --motion-emphasis: 360ms;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      min-width: 320px;
+      background: var(--color-background);
+      scroll-behavior: smooth;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      color: var(--color-foreground);
+      background: var(--color-background);
+      font-family: var(--font-body);
+      font-size: var(--text-md);
+      line-height: 1.55;
+    }
+
+    button,
+    input,
+    select {
+      font: inherit;
+    }
+
+    button {
+      touch-action: manipulation;
+    }
+
+    button:focus-visible,
+    a:focus-visible,
+    input:focus-visible,
+    [tabindex]:focus-visible {
+      outline: 3px solid var(--color-focus);
+      outline-offset: 3px;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    .skip-link {
+      position: fixed;
+      z-index: 1000;
+      top: 8px;
+      left: 8px;
+      padding: 10px 14px;
+      color: var(--color-on-primary);
+      background: var(--color-primary);
+      border-radius: var(--radius-control);
+      transform: translateY(-150%);
+    }
+
+    .skip-link:focus {
+      transform: translateY(0);
+    }
+
+    .prototype-note {
+      padding: 8px 16px;
+      color: #164e63;
+      background: #dff7ff;
+      border-bottom: 1px solid #bae6fd;
+      font-size: var(--text-sm);
+      text-align: center;
+    }
+
+    .app {
+      min-height: calc(100vh - 38px);
+    }
+
+    .topbar {
+      position: sticky;
+      z-index: 30;
+      top: 0;
+      display: grid;
+      grid-template-columns: 48px minmax(0, 1fr) 48px;
+      align-items: center;
+      gap: var(--space-3);
+      min-height: 64px;
+      padding: 8px 16px;
+      background: rgba(238, 246, 255, 0.96);
+      border-bottom: 1px solid rgba(216, 227, 244, 0.95);
+      backdrop-filter: blur(10px);
+    }
+
+    .icon-btn {
+      display: inline-grid;
+      width: 44px;
+      height: 44px;
+      place-items: center;
+      padding: 0;
+      color: var(--color-foreground);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-control);
+      cursor: pointer;
+      transition: transform var(--motion-fast) ease, box-shadow var(--motion-fast) ease;
+    }
+
+    .icon-btn:hover {
+      box-shadow: var(--shadow-panel);
+    }
+
+    .icon-btn:active {
+      transform: translateY(1px);
+    }
+
+    .icon-btn svg {
+      width: 22px;
+      height: 22px;
+      stroke-width: 2;
+    }
+
+    .brand {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .brand-mark {
+      flex: 0 0 auto;
+      padding: 5px 10px;
+      color: var(--color-on-primary);
+      background: var(--color-primary);
+      border-radius: 999px;
+      box-shadow: var(--shadow-clay);
+      font-family: var(--font-display);
+      font-size: var(--text-sm);
+      font-weight: 800;
+    }
+
+    .brand-title {
+      overflow: hidden;
+      font-size: var(--text-md);
+      font-weight: 800;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    main {
+      width: 100%;
+      padding: var(--space-5) 16px calc(108px + env(safe-area-inset-bottom));
+    }
+
+    .screen {
+      display: none;
+      width: min(1180px, 100%);
+      margin: 0 auto;
+    }
+
+    .screen.active {
+      display: block;
+      animation: screen-in var(--motion-standard) ease-out both;
+    }
+
+    @keyframes screen-in {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .screen-heading {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      justify-content: space-between;
+      gap: var(--space-4);
+      margin-bottom: var(--space-6);
+    }
+
+    .eyebrow {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--color-primary-strong);
+      font-size: var(--text-sm);
+      font-weight: 800;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1,
+    h2,
+    h3 {
+      font-family: var(--font-display);
+      line-height: 1.18;
+    }
+
+    h1 {
+      margin-bottom: var(--space-3);
+      font-size: clamp(28px, 5vw, 42px);
+    }
+
+    h2 {
+      margin-bottom: var(--space-3);
+      font-size: clamp(22px, 4vw, 30px);
+    }
+
+    h3 {
+      margin-bottom: var(--space-2);
+      font-size: var(--text-lg);
+    }
+
+    p {
+      color: var(--color-muted);
+    }
+
+    .world-strip {
+      display: grid;
+      grid-template-columns: minmax(0, 1.6fr) repeat(2, minmax(140px, 0.6fr)) auto;
+      align-items: center;
+      gap: var(--space-4);
+      margin-bottom: var(--space-6);
+      padding: var(--space-5);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-panel);
+      box-shadow: var(--shadow-panel);
+    }
+
+    .world-strip h1 {
+      margin-bottom: 0;
+      font-size: clamp(26px, 4vw, 38px);
+    }
+
+    .world-strip p {
+      margin: 4px 0 0;
+    }
+
+    .stat-block {
+      min-width: 0;
+      padding-left: var(--space-4);
+      border-left: 1px solid var(--color-border);
+    }
+
+    .stat-label {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--color-muted);
+      font-size: var(--text-xs);
+      font-weight: 700;
+    }
+
+    .stat-value {
+      display: block;
+      font-family: var(--font-number);
+      font-size: var(--text-xl);
+      font-weight: 800;
+      line-height: 1.1;
+    }
+
+    .btn {
+      display: inline-flex;
+      min-height: 48px;
+      align-items: center;
+      justify-content: center;
+      gap: var(--space-2);
+      padding: 11px 18px;
+      border: 2px solid transparent;
+      border-radius: var(--radius-control);
+      cursor: pointer;
+      font-weight: 800;
+      text-decoration: none;
+      transition:
+        transform var(--motion-fast) ease,
+        box-shadow var(--motion-fast) ease,
+        background-color var(--motion-fast) ease;
+    }
+
+    .btn:hover {
+      box-shadow: var(--shadow-panel);
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn:disabled,
+    .btn[aria-disabled="true"] {
+      cursor: not-allowed;
+      opacity: 0.62;
+    }
+
+    .btn-primary {
+      color: var(--color-on-primary);
+      background: var(--color-primary);
+      border-color: var(--color-primary);
+      box-shadow: var(--shadow-clay);
+    }
+
+    .btn-secondary {
+      color: var(--color-primary-strong);
+      background: var(--color-surface);
+      border-color: var(--color-primary);
+    }
+
+    .btn-quiet {
+      color: var(--color-foreground);
+      background: transparent;
+      border-color: var(--color-border);
+    }
+
+    .btn-success {
+      color: var(--color-on-success);
+      background: var(--color-success);
+      border-color: var(--color-success);
+    }
+
+    .btn svg {
+      width: 20px;
+      height: 20px;
+      stroke-width: 2;
+    }
+
+    .map-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.75fr);
+      gap: var(--space-6);
+      align-items: start;
+    }
+
+    .map-board {
+      position: relative;
+      min-height: 560px;
+      overflow: hidden;
+      background: #dbeafe;
+      border: 1px solid #bfdbfe;
+      border-radius: var(--radius-panel);
+      box-shadow: inset 0 0 0 8px rgba(255, 255, 255, 0.34);
+    }
+
+    .map-board::before,
+    .map-board::after {
+      position: absolute;
+      content: "";
+      pointer-events: none;
+    }
+
+    .map-board::before {
+      right: -30px;
+      bottom: -40px;
+      width: 180px;
+      height: 150px;
+      background: #bbf7d0;
+      border: 4px solid #86efac;
+      border-radius: 58% 42% 46% 54%;
+    }
+
+    .map-board::after {
+      top: -44px;
+      left: -34px;
+      width: 160px;
+      height: 130px;
+      background: #fde68a;
+      border: 4px solid #fcd34d;
+      border-radius: 44% 56% 52% 48%;
+    }
+
+    .map-path {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .map-path path {
+      fill: none;
+      stroke: rgba(37, 99, 235, 0.32);
+      stroke-width: 6;
+      stroke-linecap: round;
+      stroke-dasharray: 2 14;
+    }
+
+    .map-node {
+      position: absolute;
+      top: var(--y);
+      left: var(--x);
+      display: grid;
+      min-width: 64px;
+      justify-items: center;
+      gap: 4px;
+      padding: 0;
+      color: var(--color-foreground);
+      background: transparent;
+      border: 0;
+      cursor: pointer;
+      transform: translate(-50%, -50%);
+    }
+
+    .node-core {
+      display: grid;
+      width: 58px;
+      height: 58px;
+      place-items: center;
+      color: var(--color-on-primary);
+      background: var(--color-primary);
+      border: 3px solid #ffffff;
+      border-radius: 999px;
+      box-shadow: var(--shadow-clay);
+      font-family: var(--font-number);
+      font-size: 20px;
+      font-weight: 900;
+      transition: transform var(--motion-fast) ease;
+    }
+
+    .map-node:hover .node-core {
+      transform: translateY(-3px);
+    }
+
+    .map-node[data-status="done"] .node-core {
+      background: var(--color-success);
+    }
+
+    .map-node[data-status="locked"] {
+      color: var(--color-locked);
+    }
+
+    .map-node[data-status="locked"] .node-core {
+      color: var(--color-locked);
+      background: #e2e8f0;
+      border-color: #ffffff;
+      box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+    }
+
+    .map-node[data-status="current"] .node-core {
+      width: 72px;
+      height: 72px;
+      color: var(--color-on-secondary);
+      background: var(--color-secondary);
+      border-color: #ffffff;
+      font-size: 25px;
+      box-shadow: var(--shadow-clay), 0 0 0 8px rgba(245, 158, 11, 0.18);
+    }
+
+    .node-label {
+      max-width: 88px;
+      padding: 2px 6px;
+      background: rgba(255, 255, 255, 0.86);
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1.25;
+      text-align: center;
+    }
+
+    .node-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      color: var(--color-muted);
+      font-size: 10px;
+      font-weight: 800;
+    }
+
+    .node-status svg {
+      width: 13px;
+      height: 13px;
+    }
+
+    .milestone-panel {
+      padding: var(--space-6);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-panel);
+      box-shadow: var(--shadow-panel);
+    }
+
+    .milestone-panel h2 {
+      margin-bottom: var(--space-2);
+    }
+
+    .status-pill {
+      display: inline-flex;
+      min-height: 30px;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      color: #92400e;
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
+      border-radius: 999px;
+      font-size: var(--text-xs);
+      font-weight: 800;
+    }
+
+    .status-pill[data-tone="success"] {
+      color: #166534;
+      background: #dcfce7;
+      border-color: #86efac;
+    }
+
+    .status-pill[data-tone="info"] {
+      color: #075985;
+      background: #e0f2fe;
+      border-color: #7dd3fc;
+    }
+
+    .mastery-meter {
+      margin: var(--space-5) 0;
+    }
+
+    .meter-labels {
+      display: flex;
+      justify-content: space-between;
+      gap: var(--space-3);
+      margin-bottom: 6px;
+      font-size: var(--text-sm);
+      font-weight: 800;
+    }
+
+    .meter-track {
+      height: 12px;
+      overflow: hidden;
+      background: #e2e8f0;
+      border-radius: 999px;
+    }
+
+    .meter-fill {
+      width: 68%;
+      height: 100%;
+      background: var(--color-info);
+      border-radius: inherit;
+    }
+
+    .chapter-list {
+      display: grid;
+      gap: var(--space-2);
+      margin: var(--space-5) 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .chapter-row {
+      display: grid;
+      grid-template-columns: 36px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: var(--space-3);
+      min-height: 56px;
+      padding: var(--space-3);
+      background: var(--color-surface-soft);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-control);
+    }
+
+    .chapter-index {
+      display: grid;
+      width: 32px;
+      height: 32px;
+      place-items: center;
+      color: var(--color-primary-strong);
+      background: #dbeafe;
+      border-radius: 999px;
+      font-family: var(--font-number);
+      font-weight: 900;
+    }
+
+    .chapter-row[data-state="done"] .chapter-index {
+      color: #166534;
+      background: #dcfce7;
+    }
+
+    .chapter-row[data-state="current"] {
+      border-color: #f59e0b;
+      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.12);
+    }
+
+    .chapter-name {
+      min-width: 0;
+      font-weight: 800;
+    }
+
+    .chapter-meta {
+      color: var(--color-muted);
+      font-size: var(--text-xs);
+      font-weight: 700;
+    }
+
+    .boss-brief {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: var(--space-4);
+      align-items: center;
+      padding: var(--space-4);
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      border-radius: var(--radius-panel);
+    }
+
+    .boss-brief strong {
+      display: block;
+      font-size: var(--text-lg);
+    }
+
+    .boss-brief span {
+      color: #9a3412;
+      font-size: var(--text-sm);
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--space-3);
+      margin-top: var(--space-5);
+    }
+
+    .lesson-layout {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      gap: var(--space-6);
+      align-items: start;
+    }
+
+    .lesson-steps {
+      display: grid;
+      gap: 0;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .lesson-step {
+      display: grid;
+      grid-template-columns: 30px minmax(0, 1fr);
+      gap: var(--space-3);
+      min-height: 54px;
+      color: var(--color-muted);
+      font-size: var(--text-sm);
+      font-weight: 800;
+    }
+
+    .step-line {
+      position: relative;
+      display: grid;
+      justify-items: center;
+    }
+
+    .step-line::after {
+      position: absolute;
+      top: 25px;
+      bottom: -8px;
+      width: 2px;
+      content: "";
+      background: var(--color-border);
+    }
+
+    .lesson-step:last-child .step-line::after {
+      display: none;
+    }
+
+    .step-dot {
+      display: grid;
+      z-index: 1;
+      width: 25px;
+      height: 25px;
+      place-items: center;
+      background: #e2e8f0;
+      border-radius: 999px;
+      font-family: var(--font-number);
+      font-size: 12px;
+    }
+
+    .lesson-step[data-state="done"] {
+      color: #166534;
+    }
+
+    .lesson-step[data-state="done"] .step-dot {
+      color: #ffffff;
+      background: var(--color-success);
+    }
+
+    .lesson-step[data-state="current"] {
+      color: var(--color-primary-strong);
+    }
+
+    .lesson-step[data-state="current"] .step-dot {
+      color: var(--color-on-secondary);
+      background: var(--color-secondary);
+    }
+
+    .lesson-card,
+    .question-panel,
+    .result-panel,
+    .remediation-panel {
+      padding: var(--space-6);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-panel);
+      box-shadow: var(--shadow-panel);
+    }
+
+    .lesson-card {
+      min-height: 430px;
+    }
+
+    .fraction-demo {
+      display: flex;
+      width: min(360px, 100%);
+      gap: 10px;
+      margin: var(--space-6) 0;
+    }
+
+    .fraction-part {
+      flex: 1;
+      min-width: 56px;
+      aspect-ratio: 1;
+      background: #e2e8f0;
+      border: 3px solid #ffffff;
+      border-radius: var(--radius-game-object);
+      box-shadow: 0 6px 0 rgba(15, 23, 42, 0.06);
+    }
+
+    .fraction-part.active {
+      background: var(--color-secondary);
+      box-shadow: var(--shadow-clay);
+    }
+
+    .fraction-part.info {
+      background: var(--color-info);
+      box-shadow: var(--shadow-clay);
+    }
+
+    .answer-grid {
+      display: grid;
+      gap: var(--space-3);
+      margin-top: var(--space-5);
+    }
+
+    .answer-option {
+      display: grid;
+      grid-template-columns: 32px minmax(0, 1fr);
+      align-items: center;
+      gap: var(--space-3);
+      min-height: 56px;
+      padding: var(--space-3) var(--space-4);
+      color: var(--color-foreground);
+      text-align: left;
+      background: var(--color-surface-soft);
+      border: 2px solid var(--color-border);
+      border-radius: var(--radius-control);
+      cursor: pointer;
+      transition:
+        border-color var(--motion-fast) ease,
+        background-color var(--motion-fast) ease,
+        transform var(--motion-fast) ease;
+    }
+
+    .answer-option:hover {
+      border-color: var(--color-primary);
+      transform: translateY(-1px);
+    }
+
+    .answer-option:disabled {
+      cursor: default;
+      transform: none;
+    }
+
+    .answer-option[data-selected="true"] {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .answer-option[data-result="correct"] {
+      background: #dcfce7;
+      border-color: var(--color-success);
+    }
+
+    .answer-option[data-result="wrong"] {
+      background: #fee2e2;
+      border-color: var(--color-destructive);
+    }
+
+    .answer-key {
+      display: grid;
+      width: 32px;
+      height: 32px;
+      place-items: center;
+      color: var(--color-primary-strong);
+      background: #dbeafe;
+      border-radius: 999px;
+      font-family: var(--font-number);
+      font-weight: 900;
+    }
+
+    .feedback {
+      margin-top: var(--space-5);
+      padding: var(--space-4);
+      background: #f8fafc;
+      border: 1px solid var(--color-border);
+      border-left-width: 6px;
+      border-radius: var(--radius-control);
+    }
+
+    .feedback[data-tone="success"] {
+      background: #f0fdf4;
+      border-color: #86efac;
+      border-left-color: var(--color-success);
+    }
+
+    .feedback[data-tone="error"] {
+      background: #fff7f7;
+      border-color: #fecaca;
+      border-left-color: var(--color-destructive);
+    }
+
+    .feedback strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .boss-stage {
+      display: grid;
+      gap: var(--space-5);
+    }
+
+    .boss-topline {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-3);
+    }
+
+    .boss-arena {
+      position: relative;
+      min-height: 240px;
+      padding: var(--space-6);
+      overflow: hidden;
+      background: #dbeafe;
+      border: 1px solid #bfdbfe;
+      border-radius: var(--radius-panel);
+    }
+
+    .arena-ground {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      height: 74px;
+      background: #bbf7d0;
+      border-top: 4px solid #86efac;
+    }
+
+    .distance-track {
+      position: absolute;
+      right: 30px;
+      bottom: 26px;
+      left: 30px;
+      height: 20px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 2px solid #ffffff;
+      border-radius: 999px;
+    }
+
+    .distance-marker {
+      position: absolute;
+      top: 50%;
+      width: 12px;
+      height: 12px;
+      background: #bfdbfe;
+      border: 2px solid #ffffff;
+      border-radius: 999px;
+      transform: translate(-50%, -50%);
+    }
+
+    .distance-marker.warning {
+      background: var(--color-warning);
+    }
+
+    .boss-avatar,
+    .player-avatar {
+      position: absolute;
+      bottom: 52px;
+      transition: left var(--motion-emphasis) ease, transform var(--motion-fast) ease;
+    }
+
+    .player-avatar {
+      left: 30px;
+      width: 74px;
+      height: 92px;
+    }
+
+    .boss-avatar {
+      left: var(--boss-left, 78%);
+      width: 106px;
+      height: 126px;
+      transform: translateX(-50%);
+    }
+
+    .boss-avatar.hit {
+      animation: boss-hit 260ms ease-out;
+    }
+
+    @keyframes boss-hit {
+      0% { transform: translateX(-50%) scale(1); }
+      45% { transform: translateX(-50%) scale(0.96) rotate(-2deg); }
+      100% { transform: translateX(-50%) scale(1); }
+    }
+
+    .floating-damage {
+      position: absolute;
+      z-index: 5;
+      color: var(--color-destructive);
+      font-family: var(--font-number);
+      font-size: 30px;
+      font-weight: 900;
+      pointer-events: none;
+      animation: damage-float 650ms ease-out both;
+    }
+
+    @keyframes damage-float {
+      from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.8);
+      }
+      30% {
+        opacity: 1;
+        transform: translateY(-8px) scale(1.08);
+      }
+      to {
+        opacity: 0;
+        transform: translateY(-44px) scale(1);
+      }
+    }
+
+    .boss-hud {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: var(--space-4);
+      align-items: center;
+      padding: var(--space-4);
+      background: #312e81;
+      border-radius: var(--radius-panel);
+      color: #ffffff;
+    }
+
+    .boss-hud .stat-label {
+      color: #c7d2fe;
+    }
+
+    .boss-hud strong {
+      display: block;
+      font-size: var(--text-lg);
+    }
+
+    .hp-track {
+      height: 14px;
+      margin-top: 8px;
+      overflow: hidden;
+      background: #1e1b4b;
+      border-radius: 999px;
+    }
+
+    .hp-fill {
+      width: 100%;
+      height: 100%;
+      background: #fb7185;
+      border-radius: inherit;
+      transition: width var(--motion-emphasis) ease;
+    }
+
+    .combo-box {
+      min-width: 96px;
+      padding: var(--space-3);
+      text-align: center;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: var(--radius-control);
+    }
+
+    .combo-box strong {
+      font-family: var(--font-number);
+      font-size: 26px;
+      line-height: 1;
+    }
+
+    .question-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-3);
+      margin-bottom: var(--space-5);
+    }
+
+    .timer {
+      display: inline-flex;
+      min-width: 72px;
+      min-height: 42px;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 4px 10px;
+      color: var(--color-primary-strong);
+      background: #eff6ff;
+      border: 2px solid #bfdbfe;
+      border-radius: 999px;
+      font-family: var(--font-number);
+      font-size: var(--text-lg);
+      font-weight: 900;
+    }
+
+    .timer[data-low="true"] {
+      color: #991b1b;
+      background: #fee2e2;
+      border-color: #fca5a5;
+    }
+
+    .timer svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .result-hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 220px;
+      gap: var(--space-6);
+      align-items: center;
+    }
+
+    .result-badge {
+      display: grid;
+      width: 170px;
+      height: 170px;
+      place-items: center;
+      color: var(--color-on-primary);
+      background: var(--color-success);
+      border: 8px solid #bbf7d0;
+      border-radius: 999px;
+      box-shadow: var(--shadow-clay);
+      font-family: var(--font-number);
+      font-size: 54px;
+      font-weight: 900;
+      justify-self: center;
+    }
+
+    .result-badge[data-tone="warning"] {
+      color: #78350f;
+      background: var(--color-secondary);
+      border-color: #fde68a;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: var(--space-3);
+      margin: var(--space-6) 0;
+    }
+
+    .stat-card {
+      min-height: 104px;
+      padding: var(--space-4);
+      background: var(--color-surface-soft);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-control);
+    }
+
+    .stat-card strong {
+      display: block;
+      margin-top: var(--space-2);
+      font-family: var(--font-number);
+      font-size: 26px;
+    }
+
+    .mastery-list {
+      display: grid;
+      gap: var(--space-3);
+      padding: 0;
+      list-style: none;
+    }
+
+    .mastery-item {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: var(--space-4);
+      align-items: center;
+      padding: var(--space-4);
+      background: var(--color-surface-soft);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-control);
+    }
+
+    .mastery-item p {
+      margin: 4px 0 0;
+      font-size: var(--text-sm);
+    }
+
+    .mastery-value {
+      font-family: var(--font-number);
+      font-size: var(--text-xl);
+      font-weight: 900;
+    }
+
+    .mastery-value.positive {
+      color: var(--color-success);
+    }
+
+    .path-list {
+      display: grid;
+      gap: var(--space-3);
+      margin: var(--space-5) 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .path-item {
+      display: grid;
+      grid-template-columns: 38px minmax(0, 1fr);
+      gap: var(--space-3);
+      align-items: start;
+      padding: var(--space-4);
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: var(--radius-control);
+    }
+
+    .path-index {
+      display: grid;
+      width: 34px;
+      height: 34px;
+      place-items: center;
+      color: #78350f;
+      background: #fde68a;
+      border-radius: 999px;
+      font-family: var(--font-number);
+      font-weight: 900;
+    }
+
+    .bottom-nav {
+      position: fixed;
+      z-index: 40;
+      right: 16px;
+      bottom: calc(12px + env(safe-area-inset-bottom));
+      left: 16px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-2);
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 8px;
+      background: rgba(255, 255, 255, 0.96);
+      border: 1px solid var(--color-border);
+      border-radius: 16px;
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.16);
+      backdrop-filter: blur(10px);
+    }
+
+    .nav-btn {
+      display: grid;
+      min-height: 48px;
+      place-items: center;
+      gap: 2px;
+      padding: 4px 8px;
+      color: var(--color-muted);
+      background: transparent;
+      border: 0;
+      border-radius: var(--radius-control);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .nav-btn svg {
+      width: 21px;
+      height: 21px;
+      stroke-width: 2;
+    }
+
+    .nav-btn[aria-current="page"] {
+      color: var(--color-primary-strong);
+      background: #dbeafe;
+    }
+
+    .dialog-backdrop {
+      position: fixed;
+      z-index: 100;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      background: rgba(15, 23, 42, 0.52);
+    }
+
+    .dialog {
+      width: min(520px, 100%);
+      max-height: min(720px, calc(100vh - 32px));
+      overflow: auto;
+      padding: var(--space-6);
+      background: var(--color-surface);
+      border-radius: 16px;
+      box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+    }
+
+    .settings-list {
+      display: grid;
+      gap: var(--space-3);
+      margin: var(--space-5) 0;
+    }
+
+    .setting-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: var(--space-4);
+      align-items: center;
+      min-height: 64px;
+      padding: var(--space-3) var(--space-4);
+      background: var(--color-surface-soft);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-control);
+    }
+
+    .setting-row strong {
+      display: block;
+    }
+
+    .setting-row span {
+      display: block;
+      color: var(--color-muted);
+      font-size: var(--text-sm);
+    }
+
+    .switch {
+      position: relative;
+      width: 56px;
+      height: 32px;
+    }
+
+    .switch input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+    }
+
+    .switch-track {
+      display: block;
+      width: 56px;
+      height: 32px;
+      padding: 3px;
+      background: #cbd5e1;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background-color var(--motion-fast) ease;
+    }
+
+    .switch-track::after {
+      display: block;
+      width: 26px;
+      height: 26px;
+      content: "";
+      background: #ffffff;
+      border-radius: 999px;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.22);
+      transition: transform var(--motion-fast) ease;
+    }
+
+    .switch input:checked + .switch-track {
+      background: var(--color-primary);
+    }
+
+    .switch input:checked + .switch-track::after {
+      transform: translateX(24px);
+    }
+
+    .switch input:focus-visible + .switch-track {
+      outline: 3px solid var(--color-focus);
+      outline-offset: 3px;
+    }
+
+    .toast-region {
+      position: fixed;
+      z-index: 120;
+      right: 16px;
+      bottom: calc(86px + env(safe-area-inset-bottom));
+      display: grid;
+      gap: 8px;
+      width: min(360px, calc(100% - 32px));
+      pointer-events: none;
+    }
+
+    .toast {
+      padding: 12px 14px;
+      color: var(--color-on-primary);
+      background: #0f172a;
+      border-radius: var(--radius-control);
+      box-shadow: var(--shadow-panel);
+      font-size: var(--text-sm);
+      font-weight: 700;
+    }
+
+    .muted-note {
+      padding: var(--space-3) var(--space-4);
+      color: #475569;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: var(--radius-control);
+      font-size: var(--text-sm);
+    }
+
+    .reduce-motion *,
+    .reduce-motion *::before,
+    .reduce-motion *::after {
+      scroll-behavior: auto !important;
+      animation-duration: 1ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 1ms !important;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 1ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 1ms !important;
+      }
+    }
+
+    @media (max-width: 980px) {
+      .world-strip {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .world-strip > :first-child {
+        grid-column: 1 / -1;
+      }
+
+      .world-strip .btn {
+        grid-column: 1 / -1;
+      }
+
+      .map-layout,
+      .lesson-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .map-board {
+        min-height: 520px;
+      }
+
+      .lesson-steps {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 4px;
+      }
+
+      .lesson-step {
+        grid-template-columns: 1fr;
+        justify-items: center;
+        min-height: 52px;
+        text-align: center;
+      }
+
+      .lesson-step span:last-child {
+        font-size: 11px;
+      }
+
+      .step-line::after {
+        top: 12px;
+        right: -4px;
+        bottom: auto;
+        left: 50%;
+        width: calc(100% + 8px);
+        height: 2px;
+      }
+    }
+
+    @media (max-width: 680px) {
+      main {
+        padding-right: 14px;
+        padding-left: 14px;
+      }
+
+      .prototype-note {
+        font-size: 12px;
+      }
+
+      .world-strip {
+        grid-template-columns: 1fr;
+        padding: var(--space-4);
+      }
+
+      .stat-block {
+        padding: var(--space-3) 0 0;
+        border-top: 1px solid var(--color-border);
+        border-left: 0;
+      }
+
+      .map-board {
+        min-height: 540px;
+      }
+
+      .map-node[data-status="locked"] .node-label,
+      .map-node[data-status="done"] .node-label {
+        display: none;
+      }
+
+      .node-core {
+        width: 50px;
+        height: 50px;
+        font-size: 17px;
+      }
+
+      .map-node[data-status="current"] .node-core {
+        width: 66px;
+        height: 66px;
+      }
+
+      .boss-arena {
+        min-height: 260px;
+        padding: var(--space-4);
+      }
+
+      .boss-avatar {
+        width: 88px;
+        height: 106px;
+      }
+
+      .boss-hud {
+        grid-template-columns: 1fr;
+      }
+
+      .stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .result-hero {
+        grid-template-columns: 1fr;
+      }
+
+      .result-badge {
+        width: 132px;
+        height: 132px;
+        font-size: 42px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主要内容</a>
+  <div class="prototype-note">可点击原型：世界地图、章节微学习、Boss 战、结算、补课和成长页</div>
+  <div class="app">
+    <header class="topbar">
+      <button class="icon-btn" id="backButton" type="button" aria-label="返回世界地图">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+          <path d="m15 18-6-6 6-6"></path>
+        </svg>
+      </button>
+      <div class="brand">
+        <span class="brand-mark">知关</span>
+        <span class="brand-title" id="screenTitle">四年级数学世界</span>
+      </div>
+      <button class="icon-btn" id="settingsButton" type="button" aria-label="打开设置">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+          <path d="M4 7h10"></path>
+          <path d="M18 7h2"></path>
+          <path d="M4 17h2"></path>
+          <path d="M10 17h10"></path>
+          <circle cx="16" cy="7" r="2"></circle>
+          <circle cx="8" cy="17" r="2"></circle>
+        </svg>
+      </button>
+    </header>
+
+    <main id="main" tabindex="-1">
+      <section class="screen active" data-screen="map" aria-labelledby="worldTitle">
+        <div class="world-strip">
+          <div>
+            <span class="eyebrow">第 1 世界 · 小学数学</span>
+            <h1 id="worldTitle">四年级数学世界</h1>
+            <p>把核心能力拆成 10 个小关，每关先学短章节，再挑战 Boss。</p>
+          </div>
+          <div class="stat-block">
+            <span class="stat-label">已通关</span>
+            <span class="stat-value">2 / 10</span>
+          </div>
+          <div class="stat-block">
+            <span class="stat-label">总掌握度</span>
+            <span class="stat-value">68%</span>
+          </div>
+          <button class="btn btn-primary" id="continueTopButton" type="button">
+            继续第 3 关
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+              <path d="m9 18 6-6-6-6"></path>
+            </svg>
+          </button>
+        </div>
+
+        <div class="map-layout">
+          <div class="map-board" aria-label="四年级数学世界关卡地图">
+            <svg class="map-path" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <path d="M12 76 C20 70 23 64 30 61 S40 61 48 61 S58 50 66 44 S76 44 84 44 S74 34 66 28 S56 28 48 28 S38 20 30 14 S40 14 48 14 S58 14 66 14"></path>
+            </svg>
+
+            <button class="map-node" data-status="done" style="--x:12%;--y:76%" data-level="1" type="button">
+              <span class="node-core">1</span>
+              <span class="node-label">百数塔</span>
+              <span class="node-status">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg>
+                已通关
+              </span>
+            </button>
+            <button class="map-node" data-status="done" style="--x:30%;--y:61%" data-level="2" type="button">
+              <span class="node-core">2</span>
+              <span class="node-label">阵列之门</span>
+              <span class="node-status">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg>
+                已通关
+              </span>
+            </button>
+            <button class="map-node" data-status="current" style="--x:48%;--y:61%" data-level="3" type="button" aria-current="step">
+              <span class="node-core">3</span>
+              <span class="node-label">分数裂谷</span>
+              <span class="node-status">进行中</span>
+            </button>
+            <button class="map-node" data-status="locked" style="--x:66%;--y:44%" data-level="4" type="button">
+              <span class="node-core">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" aria-hidden="true">
+                  <rect x="5" y="10" width="14" height="10" rx="2"></rect>
+                  <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
+                </svg>
+              </span>
+              <span class="node-label">九九回廊</span>
+              <span class="node-status">先过关卡 3</span>
+            </button>
+            <button class="map-node" data-status="locked" style="--x:84%;--y:44%" data-level="5" type="button">
+              <span class="node-core">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" aria-hidden="true">
+                  <rect x="5" y="10" width="14" height="10" rx="2"></rect>
+                  <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
+                </svg>
+              </span>
+              <span class="node-label">逆流石门</span>
+              <span class="node-status">未解锁</span>
+            </button>
+            <button class="map-node" data-status="locked" style="--x:66%;--y:28%" data-level="6" type="button">
+              <span class="node-core">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" aria-hidden="true">
+                  <rect x="5" y="10" width="14" height="10" rx="2"></rect>
+                  <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
+                </svg>
+              </span>
+              <span class="node-label">运算中枢</span>
+              <span class="node-status">未解锁</span>
+            </button>
+            <button class="map-node" data-status="locked" style="--x:48%;--y:28%" data-level="7" type="button">
+              <span class="node-core">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" aria-hidden="true">
+                  <rect x="5" y="10" width="14" height="10" rx="2"></rect>
+                  <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
+                </svg>
+              </span>
+              <span class="node-label">小数回廊</span>
+              <span class="node-status">未解锁</span>
+            </button>
+            <button class="map-node" data-status="locked" style="--x:30%;--y:14%" data-level="8" type="button">
+              <span class="node-core">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" aria-hidden="true">
+                  <rect x="5" y="10" width="14" height="10" rx="2"></rect>
+                  <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
+                </svg>
+              </span>
+              <span class="node-label">精度之塔</span>
+              <span class="node-status">未解锁</span>
+            </button>
+            <button class="map-node" data-status="locked" style="--x:48%;--y:14%" data-level="9" type="button">
+              <span class="node-core">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" aria-hidden="true">
+                  <rect x="5" y="10" width="14" height="10" rx="2"></rect>
+                  <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
+                </svg>
+              </span>
+              <span class="node-label">比例天平</span>
+              <span class="node-status">未解锁</span>
+            </button>
+            <button class="map-node" data-status="locked" style="--x:66%;--y:14%" data-level="10" type="button">
+              <span class="node-core">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" aria-hidden="true">
+                  <rect x="5" y="10" width="14" height="10" rx="2"></rect>
+                  <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
+                </svg>
+              </span>
+              <span class="node-label">终局演算</span>
+              <span class="node-status">未解锁</span>
+            </button>
+          </div>
+
+          <aside class="milestone-panel" aria-labelledby="milestoneTitle">
+            <span class="status-pill" id="milestoneStatus">进行中</span>
+            <h2 id="milestoneTitle">第 3 关 · 分数裂谷</h2>
+            <p>目标：从整体和部分理解分数，能比较简单的等值分数。</p>
+
+            <div class="mastery-meter">
+              <div class="meter-labels">
+                <span>小关掌握度</span>
+                <strong>68%</strong>
+              </div>
+              <div class="meter-track" role="progressbar" aria-label="小关掌握度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="68">
+                <div class="meter-fill"></div>
+              </div>
+            </div>
+
+            <ol class="chapter-list">
+              <li class="chapter-row" data-state="done">
+                <span class="chapter-index">1</span>
+                <span>
+                  <span class="chapter-name">认识分数</span>
+                  <span class="chapter-meta">已完成 · 5 分钟</span>
+                </span>
+                <span class="status-pill" data-tone="success">完成</span>
+              </li>
+              <li class="chapter-row" data-state="done">
+                <span class="chapter-index">2</span>
+                <span>
+                  <span class="chapter-name">分数的读写</span>
+                  <span class="chapter-meta">已完成 · 4 分钟</span>
+                </span>
+                <span class="status-pill" data-tone="success">完成</span>
+              </li>
+              <li class="chapter-row" data-state="current" id="chapterThreeRow">
+                <span class="chapter-index">3</span>
+                <span>
+                  <span class="chapter-name">理解分数的意义</span>
+                  <span class="chapter-meta">当前章节 · 6 分钟</span>
+                </span>
+                <span class="status-pill" id="chapterThreeStatus">进行中</span>
+              </li>
+              <li class="chapter-row" data-state="waiting">
+                <span class="chapter-index">4</span>
+                <span>
+                  <span class="chapter-name">比较等值分数</span>
+                  <span class="chapter-meta">未开始 · 5 分钟</span>
+                </span>
+                <span class="status-pill" data-tone="info">待开始</span>
+              </li>
+            </ol>
+
+            <div class="boss-brief">
+              <div>
+                <strong>Boss：分数守卫</strong>
+                <span>9 点血量 · 5 步距离 · 8 至 12 题</span>
+              </div>
+              <button class="btn btn-success" id="bossBriefButton" type="button" disabled>
+                先完成章节
+              </button>
+            </div>
+
+            <div class="button-row">
+              <button class="btn btn-primary" id="openChapterButton" type="button">继续第 3 章</button>
+              <button class="btn btn-quiet" id="showKnowledgeButton" type="button">查看知识点</button>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="chapter" aria-labelledby="chapterTitle">
+        <div class="screen-heading">
+          <div>
+            <span class="eyebrow">第 3 关 · 第 3 章</span>
+            <h1 id="chapterTitle">理解分数的意义</h1>
+            <p>目标节点：分数的意义与等值分数。预计 6 分钟。</p>
+          </div>
+          <button class="btn btn-quiet" id="chapterBackButton" type="button">返回小关</button>
+        </div>
+
+        <div class="lesson-layout">
+          <ol class="lesson-steps" id="lessonSteps" aria-label="章节阶段"></ol>
+          <article class="lesson-card" aria-live="polite" id="lessonCard"></article>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="boss" aria-labelledby="bossTitle">
+        <div class="boss-stage">
+          <div class="boss-topline">
+            <div>
+              <span class="eyebrow">第 3 关 · Boss 战</span>
+              <h1 id="bossTitle">分数守卫</h1>
+            </div>
+            <span class="status-pill" id="battleModePill" data-tone="info">标准模式</span>
+          </div>
+
+          <div class="boss-arena" id="bossArena" aria-label="Boss 逼近轨道">
+            <div class="arena-ground"></div>
+            <svg class="player-avatar" viewBox="0 0 74 92" aria-label="玩家角色">
+              <circle cx="37" cy="25" r="18" fill="#f59e0b" stroke="#ffffff" stroke-width="5"></circle>
+              <path d="M18 84V48c0-11 8.5-20 19-20s19 9 19 20v36" fill="#2563eb" stroke="#ffffff" stroke-width="5"></path>
+              <circle cx="31" cy="23" r="2.8" fill="#0f172a"></circle>
+              <circle cx="43" cy="23" r="2.8" fill="#0f172a"></circle>
+              <path d="M31 31c3.5 4 8.5 4 12 0" fill="none" stroke="#0f172a" stroke-width="2.5" stroke-linecap="round"></path>
+            </svg>
+            <svg class="boss-avatar" id="bossAvatar" viewBox="0 0 106 126" aria-label="Boss 分数守卫">
+              <rect x="16" y="16" width="74" height="90" rx="24" fill="#4f46e5" stroke="#ffffff" stroke-width="6"></rect>
+              <path d="M29 40h48" stroke="#c7d2fe" stroke-width="6" stroke-linecap="round"></path>
+              <circle cx="38" cy="58" r="6" fill="#ffffff"></circle>
+              <circle cx="68" cy="58" r="6" fill="#ffffff"></circle>
+              <path d="M39 77c8 6 20 6 28 0" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round"></path>
+              <path d="M53 19V6" stroke="#f59e0b" stroke-width="8" stroke-linecap="round"></path>
+              <circle cx="53" cy="6" r="6" fill="#f59e0b" stroke="#ffffff" stroke-width="3"></circle>
+              <path d="M17 89 7 110l24-7" fill="#ec4899" stroke="#ffffff" stroke-width="4" stroke-linejoin="round"></path>
+              <path d="m89 89 10 21-24-7" fill="#ec4899" stroke="#ffffff" stroke-width="4" stroke-linejoin="round"></path>
+              <rect x="34" y="96" width="38" height="22" rx="8" fill="#312e81" stroke="#ffffff" stroke-width="4"></rect>
+            </svg>
+            <div class="distance-track" aria-hidden="true">
+              <span class="distance-marker warning" style="left:20%"></span>
+              <span class="distance-marker warning" style="left:40%"></span>
+              <span class="distance-marker warning" style="left:60%"></span>
+              <span class="distance-marker warning" style="left:80%"></span>
+              <span class="distance-marker warning" style="left:100%"></span>
+            </div>
+          </div>
+
+          <div class="boss-hud">
+            <div>
+              <span class="stat-label">Boss 血量</span>
+              <strong id="bossHpText">9 / 9</strong>
+              <div class="hp-track" role="progressbar" aria-label="Boss 血量" aria-valuemin="0" aria-valuemax="9" aria-valuenow="9" id="bossHpTrack">
+                <div class="hp-fill" id="bossHpFill"></div>
+              </div>
+              <p id="bossDistanceText" style="color:#c7d2fe;margin:8px 0 0">Boss 还有 5 步碰到你</p>
+            </div>
+            <div class="combo-box">
+              <span class="stat-label">连击</span>
+              <strong id="comboText">0</strong>
+            </div>
+          </div>
+
+          <article class="question-panel">
+            <div class="question-meta">
+              <span class="status-pill" id="questionCounter">第 1 / 4 题</span>
+              <div class="timer" id="timer" role="timer" aria-live="polite">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+                  <circle cx="12" cy="13" r="8"></circle>
+                  <path d="M12 9v4l3 2"></path>
+                  <path d="M9 2h6"></path>
+                </svg>
+                <span id="timerText">20s</span>
+              </div>
+            </div>
+            <h2 id="questionStem"></h2>
+            <div class="answer-grid" id="answerGrid"></div>
+            <div class="feedback" id="feedbackPanel" hidden></div>
+            <div class="button-row">
+              <button class="btn btn-primary" id="nextQuestionButton" type="button" hidden>下一题</button>
+              <button class="btn btn-quiet" id="quitBattleButton" type="button">暂停并返回</button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="screen" data-screen="result" aria-labelledby="resultTitle">
+        <article class="result-panel">
+          <div class="result-hero">
+            <div>
+              <span class="eyebrow">Boss 战结算</span>
+              <h1 id="resultTitle">小关突破</h1>
+              <p id="resultSummary">分数守卫已停止逼近。你达成了本小关的核心目标。</p>
+              <div class="button-row">
+                <button class="btn btn-primary" id="resultPrimaryButton" type="button">进入下一关</button>
+                <button class="btn btn-secondary" id="resultSecondaryButton" type="button">查看知识点</button>
+              </div>
+            </div>
+            <div class="result-badge" id="resultBadge" aria-label="三星通关">3</div>
+          </div>
+
+          <div class="stats-grid">
+            <div class="stat-card">
+              <span class="stat-label">正确率</span>
+              <strong id="resultAccuracy">100%</strong>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">用时</span>
+              <strong id="resultTime">1:42</strong>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">最高连击</span>
+              <strong id="resultCombo">4</strong>
+            </div>
+            <div class="stat-card">
+              <span class="stat-label">掌握度变化</span>
+              <strong id="resultMastery">+18</strong>
+            </div>
+          </div>
+
+          <h2>知识节点</h2>
+          <ul class="mastery-list">
+            <li class="mastery-item">
+              <div>
+                <strong>分数意义与等值分数</strong>
+                <p>能从整体和部分理解分数，能识别等值分数</p>
+              </div>
+              <span class="mastery-value positive">86%</span>
+            </li>
+            <li class="mastery-item">
+              <div>
+                <strong>除法、余数与乘除互逆</strong>
+                <p>前置节点复习完成</p>
+              </div>
+              <span class="mastery-value positive">82%</span>
+            </li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="screen" data-screen="remediation" aria-labelledby="remediationTitle">
+        <article class="remediation-panel">
+          <span class="eyebrow">补强路径</span>
+          <h1 id="remediationTitle">先补强 2 个节点</h1>
+          <p>系统只推最低成本的路径。完成后可以直接重打 Boss，不重学整关。</p>
+
+          <ol class="path-list">
+            <li class="path-item">
+              <span class="path-index">1</span>
+              <div>
+                <strong>分数意义与等值分数</strong>
+                <p>当前掌握度 52%。完成 3 题图形识别，再比较两组等值分数。</p>
+              </div>
+            </li>
+            <li class="path-item">
+              <span class="path-index">2</span>
+              <div>
+                <strong>除法、余数与乘除互逆</strong>
+                <p>当前掌握度 58%。完成 2 题乘除逆运算，确认分数与除法关系。</p>
+              </div>
+            </li>
+          </ol>
+
+          <div class="button-row">
+            <button class="btn btn-primary" id="finishRemediationButton" type="button">完成补强，返回 Boss</button>
+            <button class="btn btn-quiet" id="remediationBackButton" type="button">返回结算</button>
+          </div>
+        </article>
+      </section>
+
+      <section class="screen" data-screen="growth" aria-labelledby="growthTitle">
+        <div class="screen-heading">
+          <div>
+            <span class="eyebrow">学习成长</span>
+            <h1 id="growthTitle">掌握度进度</h1>
+            <p>看节点掌握和复习建议，不显示公开排名。</p>
+          </div>
+          <span class="status-pill" data-tone="info">下次复习：3 天后</span>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-label">已掌握节点</span>
+            <strong>12</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">初步掌握</span>
+            <strong>5</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">待补强</span>
+            <strong>3</strong>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">本周学习</span>
+            <strong>94m</strong>
+          </div>
+        </div>
+
+        <ul class="mastery-list">
+          <li class="mastery-item">
+            <div>
+              <strong>分数意义与等值分数</strong>
+              <p>已掌握 · 最近练习：今天 · 下次复习：3 天后</p>
+            </div>
+            <span class="mastery-value">86%</span>
+          </li>
+          <li class="mastery-item">
+            <div>
+              <strong>除法、余数与乘除互逆</strong>
+              <p>已掌握 · 最近练习：昨天 · 下次复习：5 天后</p>
+            </div>
+            <span class="mastery-value">82%</span>
+          </li>
+          <li class="mastery-item">
+            <div>
+              <strong>分数比较与四则运算</strong>
+              <p>初步掌握 · 建议先完成 2 题比较练习</p>
+            </div>
+            <span class="mastery-value">64%</span>
+          </li>
+          <li class="mastery-item">
+            <div>
+              <strong>小数意义与分数互换</strong>
+              <p>未开始 · 需要先掌握当前小关</p>
+            </div>
+            <span class="mastery-value">0%</span>
+          </li>
+        </ul>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="主导航">
+      <button class="nav-btn" type="button" data-nav="map" aria-current="page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+          <path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z"></path>
+          <path d="M9 3v15"></path>
+          <path d="M15 6v15"></path>
+        </svg>
+        闯关
+      </button>
+      <button class="nav-btn" type="button" data-nav="growth">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+          <path d="M4 20V10"></path>
+          <path d="M10 20V4"></path>
+          <path d="M16 20v-7"></path>
+          <path d="M22 20H2"></path>
+        </svg>
+        成长
+      </button>
+      <button class="nav-btn" type="button" id="navSettingsButton">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+          <path d="M4 7h10"></path>
+          <path d="M18 7h2"></path>
+          <path d="M4 17h2"></path>
+          <path d="M10 17h10"></path>
+          <circle cx="16" cy="7" r="2"></circle>
+          <circle cx="8" cy="17" r="2"></circle>
+        </svg>
+        设置
+      </button>
+    </nav>
+  </div>
+
+  <div class="dialog-backdrop" id="settingsDialog" hidden role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="dialog">
+      <div class="screen-heading">
+        <div>
+          <span class="eyebrow">学习环境</span>
+          <h2 id="settingsTitle">设置</h2>
+        </div>
+        <button class="icon-btn" id="closeSettingsButton" type="button" aria-label="关闭设置">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+            <path d="M18 6 6 18"></path>
+            <path d="m6 6 12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <div class="settings-list">
+        <label class="setting-row">
+          <span>
+            <strong>学习模式</strong>
+            <span>倒计时不影响胜负，答错不推进 Boss</span>
+          </span>
+          <span class="switch">
+            <input type="checkbox" id="learningModeToggle">
+            <span class="switch-track" aria-hidden="true"></span>
+          </span>
+        </label>
+        <label class="setting-row">
+          <span>
+            <strong>减少动态效果</strong>
+            <span>关闭伤害浮动、页面位移和强调动画</span>
+          </span>
+          <span class="switch">
+            <input type="checkbox" id="reduceMotionToggle">
+            <span class="switch-track" aria-hidden="true"></span>
+          </span>
+        </label>
+        <label class="setting-row">
+          <span>
+            <strong>音效与触感</strong>
+            <span>在答题确认和通关时提供反馈</span>
+          </span>
+          <span class="switch">
+            <input type="checkbox" id="soundToggle" checked>
+            <span class="switch-track" aria-hidden="true"></span>
+          </span>
+        </label>
+      </div>
+
+      <p class="muted-note">原型中学习模式会改变 Boss 战文案和超时行为。正式产品应同步服务端裁决。</p>
+      <button class="btn btn-primary" id="saveSettingsButton" type="button">完成</button>
+    </div>
+  </div>
+
+  <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
+
+  <script>
+    const screenTitles = {
+      map: "四年级数学世界",
+      chapter: "第 3 章 · 理解分数的意义",
+      boss: "Boss 战 · 分数守卫",
+      result: "小关结算",
+      remediation: "补强路径",
+      growth: "掌握度进度"
+    };
+
+    const state = {
+      screen: "map",
+      lessonStep: 0,
+      lessonAnswered: false,
+      bossUnlocked: false,
+      bossHp: 9,
+      bossDistance: 5,
+      combo: 0,
+      maxCombo: 0,
+      questionIndex: 0,
+      questionAnswered: false,
+      correctCount: 0,
+      learningMode: false,
+      reduceMotion: false,
+      remaining: 0,
+      timerId: null
+    };
+
+    const lessonSteps = [
+      {
+        label: "钩子",
+        title: "一张饼，4 个人怎么分？",
+        text: "要让每个人拿到一样大，就把这张饼平均分成 4 份。只取其中 1 份，就是 1/4。",
+        visual: [true, false, false, false]
+      },
+      {
+        label: "概念",
+        title: "分数表示整体中的一份或几份",
+        text: "下面把一个整体平均分成 4 份。涂色 1 份表示 1/4，涂色 2 份表示 2/4。",
+        visual: [true, true, false, false]
+      },
+      {
+        label: "范例",
+        title: "2/4 和 1/2 表示同样大的部分",
+        text: "把同一个整体平均分成 4 份取 2 份，和平均分成 2 份取 1 份，覆盖的面积相同它们就是等值分数。",
+        visual: [true, true, false, false]
+      },
+      {
+        label: "跟做",
+        title: "哪一个图形表示 1/3？",
+        text: "先判断整体是否被平均分成 3 份，再看是否只取了其中 1 份。",
+        options: ["平均分成 4 份取 1 份", "平均分成 3 份取 1 份", "平均分成 3 份取 2 份"],
+        correct: 1,
+        explanation: "1/3 表示整体平均分成 3 份，取其中 1 份。"
+      },
+      {
+        label: "独立练习",
+        title: "1/4 和 2/8 相比，哪一个更大？",
+        text: "先找共同的整体，再判断它们覆盖的部分是否相等。",
+        options: ["1/4 更大", "2/8 更大", "两个一样大"],
+        correct: 2,
+        explanation: "2/8 可以约分成 1/4，所以它们表示同样大的部分。"
+      },
+      {
+        label: "短测",
+        title: "下面哪个分数等于 1/2？",
+        text: "选出与 1/2 等值的分数。",
+        options: ["2/4", "1/3", "2/3"],
+        correct: 0,
+        explanation: "2/4 的分子和分母同时除以 2，得到 1/2。"
+      }
+    ];
+
+    const bossQuestions = [
+      {
+        stem: "一个整体平均分成 4 份，涂色 1 份，用哪个分数表示？",
+        options: ["1/4", "4/1", "3/4"],
+        correct: 0,
+        time: 20,
+        explanation: "平均分成 4 份取 1 份，就是 1/4。"
+      },
+      {
+        stem: "下面哪个分数与 1/2 等值？",
+        options: ["2/3", "2/4", "1/4"],
+        correct: 1,
+        time: 20,
+        explanation: "2/4 约分后是 1/2。"
+      },
+      {
+        stem: "3/6 和 1/2 相比，结果是什么？",
+        options: ["3/6 更大", "两个一样大", "1/2 更大"],
+        correct: 1,
+        time: 20,
+        explanation: "3/6 约分后是 1/2，因此两个分数一样大。"
+      },
+      {
+        stem: "一个图形平均分成 8 份，涂色 4 份，等于下面哪个分数？",
+        options: ["1/4", "1/2", "4/8"],
+        correct: 2,
+        time: 20,
+        explanation: "涂色 4 份写作 4/8，它同时也等于 1/2。"
+      }
+    ];
+
+    const screens = [...document.querySelectorAll("[data-screen]")];
+    const navButtons = [...document.querySelectorAll("[data-nav]")];
+    const screenTitle = document.querySelector("#screenTitle");
+    const backButton = document.querySelector("#backButton");
+    const main = document.querySelector("#main");
+    const toastRegion = document.querySelector("#toastRegion");
+    const settingsDialog = document.querySelector("#settingsDialog");
+    const lessonStepsEl = document.querySelector("#lessonSteps");
+    const lessonCard = document.querySelector("#lessonCard");
+    const answerGrid = document.querySelector("#answerGrid");
+    const feedbackPanel = document.querySelector("#feedbackPanel");
+    const nextQuestionButton = document.querySelector("#nextQuestionButton");
+    const timerText = document.querySelector("#timerText");
+    const timer = document.querySelector("#timer");
+    const bossAvatar = document.querySelector("#bossAvatar");
+    const bossArena = document.querySelector("#bossArena");
+
+    function showToast(message) {
+      const toast = document.createElement("div");
+      toast.className = "toast";
+      toast.textContent = message;
+      toastRegion.replaceChildren(toast);
+      window.setTimeout(() => {
+        if (toastRegion.contains(toast)) {
+          toastRegion.replaceChildren();
+        }
+      }, 2600);
+    }
+
+    function showScreen(name, options = {}) {
+      if (name !== "boss") {
+        stopTimer();
+      }
+
+      state.screen = name;
+      screens.forEach((screen) => {
+        const active = screen.dataset.screen === name;
+        screen.classList.toggle("active", active);
+      });
+
+      screenTitle.textContent = screenTitles[name] || "知关";
+      navButtons.forEach((button) => {
+        const active = button.dataset.nav === name;
+        if (active) {
+          button.setAttribute("aria-current", "page");
+        } else {
+          button.removeAttribute("aria-current");
+        }
+      });
+
+      if (options.focus !== false) {
+        main.focus({ preventScroll: true });
+      }
+
+      window.scrollTo({ top: 0, behavior: state.reduceMotion ? "auto" : "smooth" });
+    }
+
+    function renderLessonSteps() {
+      lessonStepsEl.innerHTML = lessonSteps.map((step, index) => {
+        let stepState = "waiting";
+        if (index < state.lessonStep) stepState = "done";
+        if (index === state.lessonStep) stepState = "current";
+        return `
+          <li class="lesson-step" data-state="${stepState}">
+            <span class="step-line"><span class="step-dot">${index + 1}</span></span>
+            <span>${step.label}</span>
+          </li>
+        `;
+      }).join("");
+    }
+
+    function renderLesson() {
+      const completed = state.lessonStep >= lessonSteps.length;
+
+      if (completed) {
+        lessonStepsEl.innerHTML = lessonSteps.map((item, index) => `
+          <li class="lesson-step" data-state="done">
+            <span class="step-line"><span class="step-dot">${index + 1}</span></span>
+            <span>${item.label}</span>
+          </li>
+        `).join("");
+        lessonCard.innerHTML = `
+          <span class="status-pill" data-tone="success">章节完成</span>
+          <h2>准备好挑战分数守卫了</h2>
+          <p>你已经完成钩子、概念、范例、跟做、独立练习和短测。掌握度更新为 78%。</p>
+          <div class="feedback" data-tone="success">
+            <strong>本节点已解锁</strong>
+            <p>下一步可以回到小关，检查其他章节后发起 Boss 挑战。</p>
+          </div>
+          <div class="button-row">
+            <button class="btn btn-primary" id="completeChapterButton" type="button">回到小关</button>
+            <button class="btn btn-success" id="lessonBossButton" type="button">查看 Boss</button>
+          </div>
+        `;
+        return;
+      }
+
+      const step = lessonSteps[state.lessonStep];
+      const isQuestion = Array.isArray(step.options);
+      renderLessonSteps();
+      const visual = step.visual
+        ? `<div class="fraction-demo" aria-label="分数示意图">${step.visual.map((active) => `<span class="fraction-part ${active ? "active" : ""}"></span>`).join("")}</div>`
+        : "";
+      const answerHtml = isQuestion
+        ? `<div class="answer-grid" id="lessonAnswerGrid">${step.options.map((option, index) => `
+            <button class="answer-option" type="button" data-lesson-answer="${index}">
+              <span class="answer-key">${String.fromCharCode(65 + index)}</span>
+              <span>${option}</span>
+            </button>
+          `).join("")}</div>`
+        : "";
+      const actionLabel = isQuestion ? "请选择答案" : state.lessonStep === lessonSteps.length - 1 ? "完成短测" : "继续";
+      const feedbackHtml = state.lessonAnswered
+        ? `<div class="feedback" data-tone="${state.lessonAnswerCorrect ? "success" : "error"}">
+            <strong>${state.lessonAnswerCorrect ? "答对了" : "再想一步"}</strong>
+            <p>${step.explanation}</p>
+          </div>`
+        : "";
+
+      lessonCard.innerHTML = `
+        <span class="status-pill" data-tone="info">${step.label}</span>
+        <h2>${step.title}</h2>
+        <p>${step.text}</p>
+        ${visual}
+        ${answerHtml}
+        ${feedbackHtml}
+        <div class="button-row">
+          <button class="btn btn-primary" id="lessonActionButton" type="button">${state.lessonAnswered ? "继续下一步" : actionLabel}</button>
+        </div>
+      `;
+
+      document.querySelector("#lessonActionButton")?.addEventListener("click", handleLessonAction);
+      document.querySelector("#lessonAnswerGrid")?.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-lesson-answer]");
+        if (button) {
+          handleLessonAnswer(Number(button.dataset.lessonAnswer));
+        }
+      });
+    }
+
+    function handleLessonAnswer(index) {
+      if (state.lessonAnswered) return;
+      const step = lessonSteps[state.lessonStep];
+      state.lessonAnswered = true;
+      state.lessonAnswerCorrect = index === step.correct;
+
+      document.querySelectorAll("[data-lesson-answer]").forEach((button) => {
+        const answerIndex = Number(button.dataset.lessonAnswer);
+        button.disabled = true;
+        if (answerIndex === step.correct) {
+          button.dataset.result = "correct";
+        } else if (answerIndex === index) {
+          button.dataset.result = "wrong";
+        }
+      });
+
+      renderLesson();
+      const feedback = lessonCard.querySelector(".feedback");
+      if (feedback) {
+        feedback.setAttribute("aria-live", "polite");
+      }
+    }
+
+    function handleLessonAction() {
+      const step = lessonSteps[state.lessonStep];
+      const isQuestion = Array.isArray(step.options);
+      if (isQuestion && !state.lessonAnswered) {
+        showToast("先选择一个答案，再继续。");
+        return;
+      }
+
+      state.lessonStep += 1;
+      state.lessonAnswered = false;
+      state.lessonAnswerCorrect = false;
+      renderLesson();
+    }
+
+    function completeChapter() {
+      state.bossUnlocked = true;
+      const chapterThreeRow = document.querySelector("#chapterThreeRow");
+      const chapterThreeStatus = document.querySelector("#chapterThreeStatus");
+      const bossBriefButton = document.querySelector("#bossBriefButton");
+
+      chapterThreeRow.dataset.state = "done";
+      chapterThreeStatus.textContent = "完成";
+      chapterThreeStatus.dataset.tone = "success";
+      bossBriefButton.disabled = false;
+      bossBriefButton.textContent = "查看 Boss";
+      showScreen("map");
+      showToast("第 3 章已完成，Boss 挑战已解锁。");
+    }
+
+    function renderBossQuestion() {
+      const question = bossQuestions[state.questionIndex];
+      if (!question) {
+        finishBattle(state.bossHp <= 0 ? "win" : "lose");
+        return;
+      }
+
+      state.questionAnswered = false;
+      document.querySelector("#questionCounter").textContent = `第 ${state.questionIndex + 1} / ${bossQuestions.length} 题`;
+      document.querySelector("#questionStem").textContent = question.stem;
+      answerGrid.innerHTML = question.options.map((option, index) => `
+        <button class="answer-option" type="button" data-boss-answer="${index}">
+          <span class="answer-key">${String.fromCharCode(65 + index)}</span>
+          <span>${option}</span>
+        </button>
+      `).join("");
+      feedbackPanel.hidden = true;
+      feedbackPanel.replaceChildren();
+      nextQuestionButton.hidden = true;
+      nextQuestionButton.textContent = state.questionIndex === bossQuestions.length - 1 ? "查看结算" : "下一题";
+      startTimer(question.time);
+    }
+
+    function startTimer(seconds) {
+      stopTimer();
+      state.remaining = seconds;
+      renderTimer(seconds);
+      state.timerId = window.setInterval(() => {
+        if (state.questionAnswered || state.screen !== "boss") return;
+        state.remaining -= 1;
+        renderTimer(seconds);
+        if (state.remaining <= 0) {
+          if (state.learningMode) {
+            state.remaining = 1;
+            renderTimer(seconds);
+            showToast("学习模式：超时不影响 Boss。请继续作答。");
+          } else {
+            submitBossAnswer(-1);
+          }
+        }
+      }, 1000);
+    }
+
+    function stopTimer() {
+      if (state.timerId) {
+        window.clearInterval(state.timerId);
+        state.timerId = null;
+      }
+    }
+
+    function renderTimer(total) {
+      const safeTotal = Math.max(total, 1);
+      const low = state.remaining <= Math.ceil(safeTotal * 0.25);
+      timerText.textContent = `${Math.max(state.remaining, 0)}s`;
+      timer.dataset.low = low ? "true" : "false";
+      timer.setAttribute("aria-label", `本题剩余 ${Math.max(state.remaining, 0)} 秒`);
+    }
+
+    function submitBossAnswer(index) {
+      if (state.questionAnswered) return;
+      const question = bossQuestions[state.questionIndex];
+      const correct = index === question.correct;
+      state.questionAnswered = true;
+      stopTimer();
+
+      if (correct) {
+        state.correctCount += 1;
+        state.combo += 1;
+        state.maxCombo = Math.max(state.maxCombo, state.combo);
+        const comboBonus = state.combo === 3 || state.combo === 5 ? 1 : 0;
+        const damage = 2 + comboBonus;
+        state.bossHp = Math.max(0, state.bossHp - damage);
+        showDamage(damage);
+      } else {
+        state.combo = 0;
+        if (!state.learningMode) {
+          state.bossDistance = Math.max(0, state.bossDistance - 1);
+        }
+      }
+
+      document.querySelectorAll("[data-boss-answer]").forEach((button) => {
+        const answerIndex = Number(button.dataset.bossAnswer);
+        button.disabled = true;
+        if (answerIndex === question.correct) {
+          button.dataset.result = "correct";
+        } else if (answerIndex === index) {
+          button.dataset.result = "wrong";
+        }
+      });
+
+      updateBossHud();
+      renderBattleFeedback(correct, question, index);
+      nextQuestionButton.hidden = false;
+    }
+
+    function showDamage(amount) {
+      if (state.reduceMotion) return;
+      bossAvatar.classList.remove("hit");
+      void bossAvatar.offsetWidth;
+      bossAvatar.classList.add("hit");
+
+      const damage = document.createElement("span");
+      damage.className = "floating-damage";
+      damage.textContent = `-${amount}`;
+      damage.style.right = "22%";
+      damage.style.bottom = "156px";
+      bossArena.appendChild(damage);
+      window.setTimeout(() => damage.remove(), 700);
+    }
+
+    function renderBattleFeedback(correct, question, selectedIndex) {
+      const selected = selectedIndex === -1 ? "未提交" : question.options[selectedIndex];
+      feedbackPanel.dataset.tone = correct ? "success" : "error";
+      feedbackPanel.innerHTML = `
+        <strong>${correct ? "答对了，Boss 受到伤害" : "这次没有推进 Boss 血量"}</strong>
+        <p>${question.explanation}</p>
+        <p><strong>知识节点：</strong>分数意义与等值分数</p>
+        <p><strong>你的选择：</strong>${selected}</p>
+      `;
+      feedbackPanel.hidden = false;
+    }
+
+    function updateBossHud() {
+      document.querySelector("#bossHpText").textContent = `${state.bossHp} / 9`;
+      document.querySelector("#bossHpFill").style.width = `${(state.bossHp / 9) * 100}%`;
+      document.querySelector("#bossHpTrack").setAttribute("aria-valuenow", String(state.bossHp));
+      document.querySelector("#comboText").textContent = String(state.combo);
+      document.querySelector("#bossDistanceText").textContent = state.learningMode
+        ? `学习模式：Boss 保持在 ${state.bossDistance} 步外`
+        : `Boss 还有 ${state.bossDistance} 步碰到你`;
+      bossAvatar.style.setProperty("--boss-left", `${25 + (state.bossDistance / 5) * 55}%`);
+
+      document.querySelectorAll(".distance-marker").forEach((marker, index) => {
+        marker.classList.toggle("warning", index < state.bossDistance);
+      });
+    }
+
+    function startBattle() {
+      state.bossHp = 9;
+      state.bossDistance = 5;
+      state.combo = 0;
+      state.maxCombo = 0;
+      state.questionIndex = 0;
+      state.questionAnswered = false;
+      state.correctCount = 0;
+      document.querySelector("#battleModePill").textContent = state.learningMode ? "学习模式" : "标准模式";
+      document.querySelector("#battleModePill").dataset.tone = state.learningMode ? "success" : "info";
+      updateBossHud();
+      renderBossQuestion();
+      showScreen("boss");
+    }
+
+    function finishBattle(result) {
+      stopTimer();
+      const accuracy = Math.round((state.correctCount / bossQuestions.length) * 100);
+      const title = document.querySelector("#resultTitle");
+      const summary = document.querySelector("#resultSummary");
+      const badge = document.querySelector("#resultBadge");
+      const primary = document.querySelector("#resultPrimaryButton");
+      const secondary = document.querySelector("#resultSecondaryButton");
+
+      document.querySelector("#resultAccuracy").textContent = `${accuracy}%`;
+      document.querySelector("#resultTime").textContent = "1:42";
+      document.querySelector("#resultCombo").textContent = String(state.maxCombo);
+      document.querySelector("#resultMastery").textContent = result === "win" ? "+18" : "+6";
+
+      if (result === "win") {
+        title.textContent = "小关突破";
+        summary.textContent = "分数守卫已停止逼近。你达成了本小关的核心目标。";
+        badge.textContent = accuracy >= 90 ? "3" : "2";
+        badge.dataset.tone = "success";
+        badge.setAttribute("aria-label", accuracy >= 90 ? "三星通关" : "两星通关");
+        primary.textContent = "进入下一关";
+        primary.dataset.action = "next";
+        secondary.textContent = "查看知识点";
+        showToast("Boss 已击败，掌握度已更新。");
+      } else {
+        title.textContent = "先补强这个节点";
+        summary.textContent = "Boss 碰到了玩家。你的章节进度会保留，直接补薄弱节点后重打。";
+        badge.textContent = "!";
+        badge.dataset.tone = "warning";
+        badge.setAttribute("aria-label", "需要补强");
+        primary.textContent = "开始补课";
+        primary.dataset.action = "remediation";
+        secondary.textContent = "重新挑战";
+        showToast("失败后不重学整关，系统已定位薄弱节点。");
+      }
+
+      showScreen("result");
+    }
+
+    function bindEvents() {
+      backButton.addEventListener("click", () => {
+        if (state.screen === "remediation") {
+          showScreen("result");
+          return;
+        }
+        showScreen("map");
+      });
+
+      document.querySelector("#continueTopButton").addEventListener("click", () => showScreen("chapter"));
+      document.querySelector("#openChapterButton").addEventListener("click", () => {
+        state.lessonStep = 0;
+        state.lessonAnswered = false;
+        renderLesson();
+        showScreen("chapter");
+      });
+      document.querySelector("#chapterBackButton").addEventListener("click", () => showScreen("map"));
+      document.querySelector("#showKnowledgeButton").addEventListener("click", () => showToast("知识点详情将在正式实现中展示掌握标准、题族和前置关系。"));
+
+      document.querySelectorAll(".map-node").forEach((node) => {
+        node.addEventListener("click", () => {
+          if (node.dataset.status === "locked") {
+            showToast(`未解锁：${node.querySelector(".node-status").textContent}`);
+            return;
+          }
+          if (node.dataset.level === "3") {
+            showScreen("map");
+            showToast("当前小关：分数裂谷。继续完成章节后挑战 Boss。");
+            return;
+          }
+          showToast(`${node.querySelector(".node-label").textContent}：原型中仅展示第 3 关完整流程。`);
+        });
+      });
+
+      document.querySelector("#bossBriefButton").addEventListener("click", () => {
+        if (!state.bossUnlocked) {
+          showToast("先完成章节学习，才能发起挑战。");
+          return;
+        }
+        startBattle();
+      });
+
+      lessonCard.addEventListener("click", (event) => {
+        if (event.target.closest("#completeChapterButton")) {
+          completeChapter();
+        }
+        if (event.target.closest("#lessonBossButton")) {
+          state.bossUnlocked = true;
+          startBattle();
+        }
+      });
+
+      answerGrid.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-boss-answer]");
+        if (button) {
+          submitBossAnswer(Number(button.dataset.bossAnswer));
+        }
+      });
+
+      nextQuestionButton.addEventListener("click", () => {
+        if (state.bossHp <= 0) {
+          finishBattle("win");
+          return;
+        }
+        if (state.bossDistance <= 0) {
+          finishBattle("lose");
+          return;
+        }
+        state.questionIndex += 1;
+        if (state.questionIndex >= bossQuestions.length) {
+          finishBattle(state.bossHp <= 2 ? "win" : "lose");
+          return;
+        }
+        renderBossQuestion();
+      });
+
+      document.querySelector("#quitBattleButton").addEventListener("click", () => {
+        stopTimer();
+        showScreen("map");
+        showToast("战斗已暂停。正式产品会保存服务端战斗状态。");
+      });
+
+      document.querySelector("#resultPrimaryButton").addEventListener("click", (event) => {
+        if (event.currentTarget.dataset.action === "remediation") {
+          showScreen("remediation");
+          return;
+        }
+        showScreen("map");
+        showToast("演示中暂不进入第 4 关。");
+      });
+
+      document.querySelector("#resultSecondaryButton").addEventListener("click", (event) => {
+        if (document.querySelector("#resultPrimaryButton").dataset.action === "remediation") {
+          startBattle();
+          return;
+        }
+        showScreen("growth");
+      });
+
+      document.querySelector("#finishRemediationButton").addEventListener("click", () => {
+        state.bossHp = 9;
+        state.bossDistance = 5;
+        startBattle();
+        showToast("补强完成，直接返回 Boss。");
+      });
+      document.querySelector("#remediationBackButton").addEventListener("click", () => showScreen("result"));
+
+      navButtons.forEach((button) => {
+        button.addEventListener("click", () => showScreen(button.dataset.nav));
+      });
+
+      const openSettings = () => {
+        settingsDialog.hidden = false;
+        document.querySelector("#closeSettingsButton").focus();
+      };
+      const closeSettings = () => {
+        settingsDialog.hidden = true;
+        document.querySelector("#settingsButton").focus();
+      };
+
+      document.querySelector("#settingsButton").addEventListener("click", openSettings);
+      document.querySelector("#navSettingsButton").addEventListener("click", openSettings);
+      document.querySelector("#closeSettingsButton").addEventListener("click", closeSettings);
+      document.querySelector("#saveSettingsButton").addEventListener("click", () => {
+        closeSettings();
+        showToast("设置已应用。");
+      });
+
+      settingsDialog.addEventListener("click", (event) => {
+        if (event.target === settingsDialog) {
+          closeSettings();
+        }
+      });
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && !settingsDialog.hidden) {
+          closeSettings();
+        }
+      });
+
+      document.querySelector("#learningModeToggle").addEventListener("change", (event) => {
+        state.learningMode = event.target.checked;
+        document.querySelector("#battleModePill").textContent = state.learningMode ? "学习模式" : "标准模式";
+        document.querySelector("#battleModePill").dataset.tone = state.learningMode ? "success" : "info";
+        updateBossHud();
+      });
+
+      document.querySelector("#reduceMotionToggle").addEventListener("change", (event) => {
+        state.reduceMotion = event.target.checked;
+        document.body.classList.toggle("reduce-motion", state.reduceMotion);
+      });
+    }
+
+    renderLesson();
+    updateBossHud();
+    bindEvents();
+  </script>
+</body>
+</html>
