@@ -22,6 +22,95 @@ describe("content graph validation", () => {
     expect(() => assertContentGraph()).not.toThrow();
   });
 
+  it("keeps equivalent-fraction practice aligned with its prompt", () => {
+    const chapter = chapters.find(
+      (candidate) => candidate.id === "chapter.fraction.equivalent",
+    );
+    const guided = chapter?.steps.find(
+      (step) => step.id === "equivalent.guided",
+    );
+    const practice = chapter?.steps.find(
+      (step) => step.id === "equivalent.practice",
+    );
+
+    expect(guided?.visual).toMatchObject({
+      kind: "fraction-bar",
+      total: 4,
+      active: 1,
+      compareTo: 3,
+      compareTotal: 12,
+      labels: ["1/4", "3/12"],
+    });
+    expect(practice?.visual).toMatchObject({
+      kind: "fraction-bar",
+      total: 4,
+      active: 1,
+      compareTo: undefined,
+      compareTotal: undefined,
+    });
+    expect(practice?.question?.prompt).toContain("1/4");
+  });
+
+  it("uses distinct fractions for every comparison visual", () => {
+    const comparisonSteps = chapters.flatMap((chapter) =>
+      chapter.steps
+        .filter(
+          (step) =>
+            step.visual?.kind === "fraction-bar" &&
+            step.visual.compareTo !== undefined,
+        )
+        .map((step) => ({ chapterId: chapter.id, step })),
+    );
+
+    expect(comparisonSteps.length).toBeGreaterThan(0);
+    for (const { chapterId, step } of comparisonSteps) {
+      const visual = step.visual;
+      if (!visual || visual.kind !== "fraction-bar") continue;
+      const compareTo = visual.compareTo;
+      if (compareTo === undefined) continue;
+      const compareTotal = visual.compareTotal ?? visual.total;
+
+      expect(
+        [visual.active, visual.total],
+        `${chapterId}/${step.id} should compare two different fractions`,
+      ).not.toEqual([compareTo, compareTotal]);
+    }
+  });
+
+  it("rejects a fraction comparison that repeats the main bar", () => {
+    const graph: ContentGraph = {
+      contentVersion: gradeWorld.contentVersion,
+      nodes: knowledgeNodes,
+      chapters: chapters.map((chapter) =>
+        chapter.id === "chapter.fraction.units"
+          ? {
+              ...chapter,
+              steps: chapter.steps.map((step) =>
+                step.id === "units.hook"
+                  ? {
+                      ...step,
+                      visual: {
+                        kind: "fraction-bar",
+                        total: 3,
+                        active: 1,
+                        compareTo: 1,
+                      },
+                    }
+                  : step,
+              ),
+            }
+          : chapter,
+      ),
+      milestones,
+      bosses,
+      questions: bossQuestions,
+    };
+
+    const codes = validateContentGraph(graph).map((issue) => issue.code);
+
+    expect(codes).toContain("REPEATED_FRACTION_COMPARISON");
+  });
+
   it("rejects a milestone that points at another milestone's boss", () => {
     const graph: ContentGraph = {
       contentVersion: gradeWorld.contentVersion,

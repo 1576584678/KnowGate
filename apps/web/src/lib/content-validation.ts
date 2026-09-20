@@ -146,7 +146,27 @@ function validateQuestion(question: ContentQuestion) {
     });
   }
 
+  if (hasRepeatedFractionComparison(question.visual)) {
+    issues.push({
+      severity: "error",
+      code: "REPEATED_FRACTION_COMPARISON",
+      entityType: "question",
+      entityId,
+      message: "分数条形图上下两条表示同一个分数，无法完成题干的比较。",
+    });
+  }
+
   return issues;
+}
+
+function hasRepeatedFractionComparison(
+  visual: ContentQuestion["visual"],
+) {
+  if (!visual || visual.kind !== "fraction-bar") return false;
+  if (visual.compareTo === undefined) return false;
+
+  const compareTotal = visual.compareTotal ?? visual.total;
+  return visual.compareTo === visual.active && compareTotal === visual.total;
 }
 
 function collectChapterQuestions(graph: ContentGraph) {
@@ -366,6 +386,16 @@ export function validateContentGraph(
         });
       }
       stepIds.add(step.id);
+
+      if (hasRepeatedFractionComparison(step.visual)) {
+        issues.push({
+          severity: "error",
+          code: "REPEATED_FRACTION_COMPARISON",
+          entityType: "chapter",
+          entityId: chapter.id,
+          message: `步骤 ${step.id} 的分数条形图上下两条表示同一个分数。`,
+        });
+      }
 
       if (!step.question) continue;
 
