@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef } from "react";
 import {
   ArrowRight,
   BarChart3,
@@ -13,27 +14,61 @@ import {
   calculateMasteryBreakdown,
   getMasteryStatus,
 } from "@knowgate/domain";
-import { chapters, firstMilestone, getNode, milestones } from "@/content/math-grade4";
+import { chapters, getNode, milestones } from "@/content/math-grade4";
 import { useProgress } from "@/components/progress-provider";
 import { MasteryMeter, PageIntro, StatusPill } from "@/components/ui";
+import { trackLearningEvent } from "@/lib/tracking";
 
 export default function GrowthPage() {
   const { passedChapterIds, battleOutcomes } = useProgress();
-  const firstOutcome = battleOutcomes[firstMilestone.id];
-  const firstMilestoneChapters = chapters.filter((chapter) =>
-    firstMilestone.chapterIds.includes(chapter.id),
+  const trackedReport = useRef(false);
+  const currentMilestone =
+    milestones.find(
+      (milestone) => battleOutcomes[milestone.id]?.status !== "won",
+    ) ?? milestones[milestones.length - 1];
+  const currentOutcome = battleOutcomes[currentMilestone.id];
+  const currentMilestoneChapters = chapters.filter((chapter) =>
+    currentMilestone.chapterIds.includes(chapter.id),
   );
-  const passedCount = firstMilestoneChapters.filter((chapter) =>
+  const passedCount = currentMilestoneChapters.filter((chapter) =>
     passedChapterIds.includes(chapter.id),
   ).length;
   const mastery = calculateMasteryBreakdown({
     completedChapters: passedCount,
-    totalChapters: firstMilestoneChapters.length,
-    bossOutcome: firstOutcome,
+    totalChapters: currentMilestoneChapters.length,
+    bossOutcome: currentOutcome,
   });
   const completedMilestones = milestones.filter(
     (milestone) => battleOutcomes[milestone.id]?.status === "won",
   ).length;
+  const currentNode = getNode(currentMilestone.nodeIds[0]);
+  const nextMilestone = milestones.find(
+    (milestone) => milestone.stageNo === currentMilestone.stageNo + 1,
+  );
+  const nextNode = nextMilestone
+    ? getNode(nextMilestone.nodeIds[0])
+    : undefined;
+  const weakNodeNames = Array.from(
+    new Set(
+      (currentOutcome?.mistakes ?? [])
+        .map((mistake) => getNode(mistake.nodeId)?.name)
+        .filter((name): name is string => Boolean(name)),
+    ),
+  );
+
+  useEffect(() => {
+    if (trackedReport.current) return;
+    trackedReport.current = true;
+    trackLearningEvent({
+      eventType: "report_viewed",
+      entityType: "milestone",
+      entityId: currentMilestone.id,
+      payload: {
+        completedMilestones,
+        masteryScore: mastery.score,
+      },
+    });
+  }, [completedMilestones, currentMilestone.id, mastery.score]);
 
   return (
     <div className="page-shell">
@@ -42,7 +77,9 @@ export default function GrowthPage() {
         title="掌握度地图"
         description="这里记录章节证据、Boss 验证和下一步复习建议，不展示公开排名。"
         aside={
-          <StatusPill tone={firstOutcome?.status === "won" ? "success" : "info"}>
+          <StatusPill
+            tone={currentOutcome?.status === "won" ? "success" : "info"}
+          >
             {completedMilestones} 个小关已通过
           </StatusPill>
         }
@@ -53,7 +90,7 @@ export default function GrowthPage() {
           <div className="section-heading">
             <div>
               <span className="eyebrow">当前节点</span>
-              <h2>{getNode("math.fractions_decimals.fraction_meaning")?.name}</h2>
+              <h2>{currentNode?.name ?? currentMilestone.theme}</h2>
             </div>
             <Target size={25} strokeWidth={2.2} aria-hidden="true" />
           </div>
@@ -84,19 +121,20 @@ export default function GrowthPage() {
 
         <section className="growth-card">
           <span className="eyebrow">待补强</span>
-          {firstOutcome?.status === "lost" && firstOutcome.mistakes.length ? (
+          {currentOutcome?.status === "lost" &&
+          currentOutcome.mistakes.length ? (
             <>
-              <h2>分数意义与等值分数</h2>
-              <p>本局记录了 {firstOutcome.mistakes.length} 个薄弱点。</p>
+              <h2>{weakNodeNames.slice(0, 2).join("、") || currentNode?.name}</h2>
+              <p>本局记录了 {currentOutcome.mistakes.length} 个薄弱点。</p>
               <Link
                 className="button button--primary button--wide"
-                href={`/remediation/${firstMilestone.id}`}
+                href={`/remediation/${currentMilestone.id}`}
               >
                 开始补课
                 <ArrowRight size={18} aria-hidden="true" />
               </Link>
             </>
-          ) : firstOutcome?.status === "won" ? (
+          ) : currentOutcome?.status === "won" ? (
             <>
               <h2>本节点已掌握</h2>
               <p>建议在 7 天后做一次短复习，保留长期记忆。</p>
@@ -105,7 +143,10 @@ export default function GrowthPage() {
           ) : (
             <>
               <h2>还没有战斗证据</h2>
-              <p>完成 3 个章节并挑战 Boss 后，这里会给出补强建议。</p>
+              <p>
+                完成 {currentMilestoneChapters.length} 个章节并挑战 Boss
+                后，这里会给出补强建议。
+              </p>
               <Link className="button button--secondary button--wide" href="/">
                 继续闯关
                 <ArrowRight size={18} aria-hidden="true" />
@@ -129,7 +170,7 @@ export default function GrowthPage() {
               data-done={mastery.score >= 60}
             />
             <div>
-              <strong>分数意义与等值分数</strong>
+              <strong>{currentNode?.name ?? currentMilestone.theme}</strong>
               <span>{masteryStatusLabel(getMasteryStatus(mastery.score))}</span>
             </div>
             <strong>{mastery.score}%</strong>
@@ -137,8 +178,10 @@ export default function GrowthPage() {
           <div className="mastery-row">
             <span className="mastery-row__dot" />
             <div>
-              <strong>分数比较与四则运算</strong>
-              <span>等待前置节点掌握</span>
+              <strong>{nextNode?.name ?? "全部里程碑已完成"}</strong>
+              <span>
+                {nextNode ? "等待前置节点掌握" : "可以进入综合复习"}
+              </span>
             </div>
             <strong>0%</strong>
           </div>

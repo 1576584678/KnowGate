@@ -48,6 +48,7 @@ export default function ChapterPage() {
   const [completionError, setCompletionError] = useState<string | null>(null);
   const startedAt = useRef(Date.now());
   const trackedStart = useRef(false);
+  const trackedStep = useRef("");
 
   useEffect(() => {
     if (!chapter || trackedStart.current) return;
@@ -96,6 +97,28 @@ export default function ChapterPage() {
   }, [answers, answersStorageKey, chapter, restored]);
 
   const step = chapter?.steps[stepIndex];
+  const stepViewKey =
+    chapter && step ? `${chapter.id}:${step.id}:${stepIndex}` : "";
+
+  useEffect(() => {
+    if (!chapter || !step || !restored || !stepViewKey) return;
+    if (trackedStep.current === stepViewKey) return;
+    trackedStep.current = stepViewKey;
+
+    trackLearningEvent({
+      eventType: "chapter_step_viewed",
+      entityType: "chapter",
+      entityId: chapter.id,
+      payload: {
+        milestoneId: chapter.milestoneId,
+        stepId: step.id,
+        stepIndex,
+        stepCount: chapter.steps.length,
+        phase: step.phase,
+      },
+    });
+  }, [chapter, restored, step, stepIndex, stepViewKey]);
+
   const phase = step ? phaseMeta[step.phase] : null;
   const PhaseIcon = phase?.icon;
   const progress = chapter
@@ -263,12 +286,26 @@ export default function ChapterPage() {
                     disabled={answered}
                     key={`${step.id}-${option}`}
                     onClick={() => {
+                      const question = step.question;
+                      if (!question) return;
+                      const isCorrect = index === question.answerIndex;
                       setSelectedIndex(index);
                       setAnswered(true);
                       setAnswers((current) => ({
                         ...current,
-                        [step.question!.id]: String.fromCharCode(65 + index),
+                        [question.id]: String.fromCharCode(65 + index),
                       }));
+                      trackLearningEvent({
+                        eventType: "chapter_answer_submitted",
+                        entityType: "chapter",
+                        entityId: chapter.id,
+                        payload: {
+                          questionId: question.id,
+                          nodeId: question.nodeId,
+                          selectedIndex: index,
+                          correct: isCorrect,
+                        },
+                      });
                     }}
                     type="button"
                   >

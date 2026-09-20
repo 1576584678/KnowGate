@@ -15,7 +15,7 @@ import {
   Zap,
 } from "lucide-react";
 import type { BattleMode } from "@knowgate/domain";
-import { chapters, getMilestone } from "@/content/math-grade4";
+import { chapters, getBoss, getMilestone } from "@/content/math-grade4";
 import { useProgress } from "@/components/progress-provider";
 import { StatusPill } from "@/components/ui";
 import { profileHeaders } from "@/lib/profile";
@@ -37,7 +37,9 @@ export default function BossBriefPage() {
     setMode(savedSettings.learningMode ? "learning" : "standard");
   }, []);
 
-  if (!milestone) {
+  const boss = milestone ? getBoss(milestone.bossId) : undefined;
+
+  if (!milestone || !boss) {
     return (
       <div className="page-shell narrow-shell">
         <div className="empty-state">
@@ -95,28 +97,28 @@ export default function BossBriefPage() {
         <section className="boss-hero-panel">
           <div className="boss-emblem" aria-hidden="true">
             <Shield size={54} strokeWidth={1.9} />
-            <span>9</span>
+            <span>{boss.hp}</span>
           </div>
           <StatusPill tone="warning">Boss 挑战</StatusPill>
-          <h1>分数守卫</h1>
+          <h1>{boss.name}</h1>
           <p>
-            它守在分数裂谷的出口。答对会削减生命；答错或超时会让它前进一步。
+            {boss.epithet}。答对会削减生命；答错或超时会让它前进一步。
           </p>
           <div className="boss-rules">
             <div>
               <Heart size={19} aria-hidden="true" />
               <span>生命</span>
-              <strong>9</strong>
+              <strong>{boss.hp}</strong>
             </div>
             <div>
               <Zap size={19} aria-hidden="true" />
               <span>逼近</span>
-              <strong>5 步</strong>
+              <strong>{boss.initialDistance} 步</strong>
             </div>
             <div>
               <Timer size={19} aria-hidden="true" />
               <span>题目</span>
-              <strong>11 题</strong>
+              <strong>{boss.questionIds.length} 题</strong>
             </div>
           </div>
         </section>
@@ -160,7 +162,7 @@ export default function BossBriefPage() {
 
           {!ready ? (
             <div className="notice-banner notice-banner--warning">
-              先完成 3 个学习章节，才能开始挑战。
+              先完成 {milestoneChapters.length} 个学习章节，才能开始挑战。
             </div>
           ) : null}
           {error ? <div className="inline-error">{error}</div> : null}

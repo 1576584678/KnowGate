@@ -4,6 +4,10 @@ import { DatabaseSync } from "node:sqlite";
 import type {
   BattleOutcome,
   BattleSession,
+  ContentDraft,
+  ContentDraftKind,
+  ContentDraftStatus,
+  ContentReviewRecord,
   LearningEvent,
   ProgressSnapshot,
 } from "@knowgate/domain";
@@ -37,6 +41,31 @@ type LearningEventRow = {
   payload_json: string;
   occurred_at: string;
   content_version: string | null;
+};
+
+type ContentDraftRow = {
+  id: string;
+  kind: ContentDraftKind;
+  title: string;
+  payload_json: string;
+  status: ContentDraftStatus;
+  author_id: string;
+  reviewer_id: string | null;
+  review_note: string | null;
+  created_at: string;
+  updated_at: string;
+  submitted_at: string | null;
+  reviewed_at: string | null;
+  published_at: string | null;
+};
+
+type ContentReviewRow = {
+  id: string;
+  draft_id: string;
+  action: ContentReviewRecord["action"];
+  operator_id: string;
+  note: string | null;
+  occurred_at: string;
 };
 
 export type ChapterCompletionRecord = {
@@ -134,6 +163,38 @@ export function createPersistence(databasePath = defaultDatabasePath()) {
       completed_at TEXT NOT NULL,
       PRIMARY KEY (profile_id, milestone_id)
     );
+
+    CREATE TABLE IF NOT EXISTS content_drafts (
+      id TEXT PRIMARY KEY,
+      kind TEXT NOT NULL,
+      title TEXT NOT NULL,
+      payload_json TEXT NOT NULL,
+      status TEXT NOT NULL,
+      author_id TEXT NOT NULL,
+      reviewer_id TEXT,
+      review_note TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      submitted_at TEXT,
+      reviewed_at TEXT,
+      published_at TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS content_drafts_status_idx
+      ON content_drafts (status, updated_at);
+
+    CREATE TABLE IF NOT EXISTS content_reviews (
+      id TEXT PRIMARY KEY,
+      draft_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      operator_id TEXT NOT NULL,
+      note TEXT,
+      occurred_at TEXT NOT NULL,
+      FOREIGN KEY (draft_id) REFERENCES content_drafts (id)
+    );
+
+    CREATE INDEX IF NOT EXISTS content_reviews_draft_idx
+      ON content_reviews (draft_id, occurred_at);
   `);
 
   ensureColumn(database, "chapter_progress", "score", "INTEGER NOT NULL DEFAULT 0");
@@ -307,6 +368,37 @@ export function createPersistence(databasePath = defaultDatabasePath()) {
       }));
     },
 
+    getAllLearningEvents(): LearningEvent[] {
+      const events = database
+        .prepare(
+          `
+            SELECT
+              id,
+              profile_id,
+              event_type,
+              entity_type,
+              entity_id,
+              payload_json,
+              occurred_at,
+              content_version
+            FROM learning_events
+            ORDER BY occurred_at ASC, id ASC
+          `,
+        )
+        .all() as LearningEventRow[];
+
+      return events.map((event) => ({
+        id: event.id,
+        profileId: event.profile_id,
+        eventType: event.event_type,
+        entityType: event.entity_type,
+        entityId: event.entity_id,
+        payload: parseJson<Record<string, unknown>>(event.payload_json, {}),
+        occurredAt: event.occurred_at,
+        contentVersion: event.content_version ?? undefined,
+      }));
+    },
+
     saveBattleOutcome(profileId: string, outcome: BattleOutcome) {
       database
         .prepare(
@@ -338,6 +430,214 @@ export function createPersistence(databasePath = defaultDatabasePath()) {
           JSON.stringify(outcome.mistakes),
           outcome.completedAt,
         );
+    },
+
+    saveContentDraft(draft: ContentDraft) {
+      database
+        .prepare(
+          `
+            INSERT INTO content_drafts (
+              id,
+              kind,
+              title,
+              payload_json,
+              status,
+              author_id,
+              reviewer_id,
+              review_note,
+              created_at,
+              updated_at,
+              submitted_at,
+              reviewed_at,
+              published_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+              kind = excluded.kind,
+              title = excluded.title,
+              payload_json = excluded.payload_json,
+              status = excluded.status,
+              author_id = excluded.author_id,
+              reviewer_id = excluded.reviewer_id,
+              review_note = excluded.review_note,
+              updated_at = excluded.updated_at,
+              submitted_at = excluded.submitted_at,
+              reviewed_at = excluded.reviewed_at,
+              published_at = excluded.published_at
+          `,
+        )
+        .run(
+          draft.id,
+          draft.kind,
+          draft.title,
+          JSON.stringify(draft.payload),
+          draft.status,
+          draft.authorId,
+          draft.reviewerId ?? null,
+          draft.reviewNote ?? null,
+          draft.createdAt,
+          draft.updatedAt,
+          draft.submittedAt ?? null,
+          draft.reviewedAt ?? null,
+          draft.publishedAt ?? null,
+        );
+    },
+
+    getContentDraft(draftId: string): ContentDraft | undefined {
+      const row = database
+        .prepare(
+          `
+            SELECT
+              id,
+              kind,
+              title,
+              payload_json,
+              status,
+              author_id,
+              reviewer_id,
+              review_note,
+              created_at,
+              updated_at,
+              submitted_at,
+              reviewed_at,
+              published_at
+            FROM content_drafts
+            WHERE id = ?
+          `,
+        )
+        .get(draftId) as ContentDraftRow | undefined;
+
+      return row
+        ? {
+            id: row.id,
+            kind: row.kind,
+            title: row.title,
+            payload: parseJson<Record<string, unknown>>(row.payload_json, {}),
+            status: row.status,
+            authorId: row.author_id,
+            reviewerId: row.reviewer_id ?? undefined,
+            reviewNote: row.review_note ?? undefined,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at,
+            submittedAt: row.submitted_at ?? undefined,
+            reviewedAt: row.reviewed_at ?? undefined,
+            publishedAt: row.published_at ?? undefined,
+          }
+        : undefined;
+    },
+
+    listContentDrafts(status?: ContentDraftStatus): ContentDraft[] {
+      const rows = (
+        status
+          ? database
+              .prepare(
+                `
+                  SELECT
+                    id,
+                    kind,
+                    title,
+                    payload_json,
+                    status,
+                    author_id,
+                    reviewer_id,
+                    review_note,
+                    created_at,
+                    updated_at,
+                    submitted_at,
+                    reviewed_at,
+                    published_at
+                  FROM content_drafts
+                  WHERE status = ?
+                  ORDER BY updated_at DESC, id ASC
+                `,
+              )
+              .all(status)
+          : database
+              .prepare(
+                `
+                  SELECT
+                    id,
+                    kind,
+                    title,
+                    payload_json,
+                    status,
+                    author_id,
+                    reviewer_id,
+                    review_note,
+                    created_at,
+                    updated_at,
+                    submitted_at,
+                    reviewed_at,
+                    published_at
+                  FROM content_drafts
+                  ORDER BY updated_at DESC, id ASC
+                `,
+              )
+              .all()
+      ) as ContentDraftRow[];
+
+      return rows.map((row) => ({
+        id: row.id,
+        kind: row.kind,
+        title: row.title,
+        payload: parseJson<Record<string, unknown>>(row.payload_json, {}),
+        status: row.status,
+        authorId: row.author_id,
+        reviewerId: row.reviewer_id ?? undefined,
+        reviewNote: row.review_note ?? undefined,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        submittedAt: row.submitted_at ?? undefined,
+        reviewedAt: row.reviewed_at ?? undefined,
+        publishedAt: row.published_at ?? undefined,
+      }));
+    },
+
+    recordContentReview(review: ContentReviewRecord) {
+      database
+        .prepare(
+          `
+            INSERT INTO content_reviews (
+              id,
+              draft_id,
+              action,
+              operator_id,
+              note,
+              occurred_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+          `,
+        )
+        .run(
+          review.id,
+          review.draftId,
+          review.action,
+          review.operatorId,
+          review.note ?? null,
+          review.occurredAt,
+        );
+    },
+
+    getContentReviews(draftId: string): ContentReviewRecord[] {
+      const rows = database
+        .prepare(
+          `
+            SELECT id, draft_id, action, operator_id, note, occurred_at
+            FROM content_reviews
+            WHERE draft_id = ?
+            ORDER BY occurred_at ASC, id ASC
+          `,
+        )
+        .all(draftId) as ContentReviewRow[];
+
+      return rows.map((row) => ({
+        id: row.id,
+        draftId: row.draft_id,
+        action: row.action,
+        operatorId: row.operator_id,
+        note: row.note ?? undefined,
+        occurredAt: row.occurred_at,
+      }));
     },
 
     getProgress(profileId: string): ProgressSnapshot {

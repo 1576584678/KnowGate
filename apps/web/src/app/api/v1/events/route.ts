@@ -9,10 +9,14 @@ import { getProfileIdFromRequest } from "@/lib/profile";
 export const runtime = "nodejs";
 
 const trackableEvents = new Set<LearningEventType>([
+  "page_viewed",
   "chapter_started",
+  "chapter_step_viewed",
+  "chapter_answer_submitted",
   "practice_answered",
   "remediation_started",
   "remediation_completed",
+  "report_viewed",
 ]);
 
 function isTrackableEvent(value: string): value is LearningEventType {

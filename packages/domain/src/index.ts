@@ -161,7 +161,10 @@ export type ChapterCompletionResult = {
 };
 
 export const learningEventTypes = [
+  "page_viewed",
   "chapter_started",
+  "chapter_step_viewed",
+  "chapter_answer_submitted",
   "chapter_completed",
   "chapter_migrated",
   "practice_answered",
@@ -173,6 +176,7 @@ export const learningEventTypes = [
   "boss_lost",
   "remediation_started",
   "remediation_completed",
+  "report_viewed",
 ] as const;
 
 export type LearningEventType = (typeof learningEventTypes)[number];
@@ -186,6 +190,45 @@ export type LearningEvent = {
   payload: Record<string, unknown>;
   occurredAt: string;
   contentVersion?: string;
+};
+
+export type ContentDraftKind =
+  | "knowledge_node"
+  | "chapter"
+  | "boss"
+  | "question_template"
+  | "curriculum";
+
+export type ContentDraftStatus =
+  | "draft"
+  | "in_review"
+  | "approved"
+  | "rejected"
+  | "published";
+
+export type ContentDraft = {
+  id: string;
+  kind: ContentDraftKind;
+  title: string;
+  payload: Record<string, unknown>;
+  status: ContentDraftStatus;
+  authorId: string;
+  reviewerId?: string;
+  reviewNote?: string;
+  createdAt: string;
+  updatedAt: string;
+  submittedAt?: string;
+  reviewedAt?: string;
+  publishedAt?: string;
+};
+
+export type ContentReviewRecord = {
+  id: string;
+  draftId: string;
+  action: "submitted" | "approved" | "rejected" | "published";
+  operatorId: string;
+  note?: string;
+  occurredAt: string;
 };
 
 export type BattleSession = {

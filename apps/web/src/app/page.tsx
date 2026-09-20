@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { calculateMasteryBreakdown } from "@knowgate/domain";
 import type { CSSProperties } from "react";
-import { chapters, firstMilestone, milestones } from "@/content/math-grade4";
+import { chapters, getBoss, milestones } from "@/content/math-grade4";
 import { useProgress } from "@/components/progress-provider";
 import { MasteryMeter, PageIntro, StateIcon, StatusPill } from "@/components/ui";
 
@@ -33,31 +33,53 @@ type MilestoneState = "done" | "current" | "available" | "locked";
 
 export default function WorldMapPage() {
   const { passedChapterIds, battleOutcomes, ready } = useProgress();
-  const firstBossWon = battleOutcomes[firstMilestone.id]?.status === "won";
-  const firstMilestoneReady = firstMilestone.chapterIds.every((chapterId) =>
-    passedChapterIds.includes(chapterId),
+  const currentMilestone =
+    milestones.find(
+      (milestone) => battleOutcomes[milestone.id]?.status !== "won",
+    ) ?? milestones[milestones.length - 1];
+  const currentMilestoneChapters = chapters.filter((chapter) =>
+    currentMilestone.chapterIds.includes(chapter.id),
   );
-  const currentMilestone = firstBossWon ? milestones[1] : firstMilestone;
+  const currentMilestonePassedCount = currentMilestoneChapters.filter(
+    (chapter) => passedChapterIds.includes(chapter.id),
+  ).length;
+  const currentMilestoneReady =
+    currentMilestoneChapters.length > 0 &&
+    currentMilestonePassedCount === currentMilestoneChapters.length;
+  const currentBoss = getBoss(currentMilestone.bossId);
   const completedMilestones = milestones.filter(
     (milestone) => battleOutcomes[milestone.id]?.status === "won",
   ).length;
-  const firstMilestonePassedCount = passedChapterIds.filter((chapterId) =>
-    firstMilestone.chapterIds.includes(chapterId),
-  ).length;
   const mastery = calculateMasteryBreakdown({
-    completedChapters: firstMilestonePassedCount,
-    totalChapters: firstMilestone.chapterIds.length,
-    bossOutcome: battleOutcomes[firstMilestone.id],
+    completedChapters: currentMilestonePassedCount,
+    totalChapters: currentMilestoneChapters.length,
+    bossOutcome: battleOutcomes[currentMilestone.id],
   });
   const masteryValue = mastery.score;
 
   function stateFor(milestoneId: string): MilestoneState {
     if (battleOutcomes[milestoneId]?.status === "won") return "done";
-    if (milestoneId === firstMilestone.id) {
-      return firstMilestoneReady ? "available" : "current";
-    }
-    if (milestoneId === milestones[1].id && firstBossWon) return "current";
-    return "locked";
+    const index = milestones.findIndex(
+      (milestone) => milestone.id === milestoneId,
+    );
+    const milestone = milestones[index];
+    if (!milestone) return "locked";
+    const previous = milestones[index - 1];
+    const unlocked =
+      index === 0 ||
+      (previous && battleOutcomes[previous.id]?.status === "won");
+    if (!unlocked) return "locked";
+
+    const milestoneChapters = chapters.filter((chapter) =>
+      milestone.chapterIds.includes(chapter.id),
+    );
+    const milestoneReady =
+      milestoneChapters.length > 0 &&
+      milestoneChapters.every((chapter) =>
+        passedChapterIds.includes(chapter.id),
+      );
+
+    return milestoneReady ? "available" : "current";
   }
 
   return (
@@ -65,12 +87,14 @@ export default function WorldMapPage() {
       <PageIntro
         eyebrow="四年级数学"
         title="分数群岛"
-        description="先把整体与部分看清楚，再穿过分数裂谷，挑战第一个 Boss。"
+        description="从分数意义出发，穿过等值、小数、图形、数据与问题解决阶段，完成 10 个能力里程碑。"
         aside={
           <div className="world-summary">
             <div>
               <span>已完成</span>
-              <strong>{completedMilestones}/10</strong>
+              <strong>
+                {completedMilestones}/{milestones.length}
+              </strong>
             </div>
             <div>
               <span>当前掌握</span>
@@ -87,7 +111,13 @@ export default function WorldMapPage() {
               <span className="eyebrow">能力路线</span>
               <h2 id="map-title">10 个里程碑</h2>
             </div>
-            <StatusPill tone="info">第 1 关已开放</StatusPill>
+            <StatusPill
+              tone={completedMilestones === milestones.length ? "success" : "info"}
+            >
+              {completedMilestones === milestones.length
+                ? "全部关卡已完成"
+                : `第 ${currentMilestone.stageNo} 关已开放`}
+            </StatusPill>
           </div>
 
           <div className="map-board">
@@ -171,8 +201,16 @@ export default function WorldMapPage() {
 
         <aside className="milestone-panel" aria-labelledby="current-stage-title">
           <div className="milestone-panel__top">
-            <StatusPill tone={firstBossWon ? "success" : "warning"}>
-              {firstBossWon ? "世界继续前进" : "当前小关"}
+            <StatusPill
+              tone={
+                battleOutcomes[currentMilestone.id]?.status === "won"
+                  ? "success"
+                  : "warning"
+              }
+            >
+              {battleOutcomes[currentMilestone.id]?.status === "won"
+                ? "世界已全部贯通"
+                : "当前小关"}
             </StatusPill>
             <span className="stage-number">
               {String(currentMilestone.stageNo).padStart(2, "0")}
@@ -192,9 +230,10 @@ export default function WorldMapPage() {
           <MasteryMeter label="当前里程碑掌握度" value={masteryValue} />
 
           <ol className="chapter-mini-list">
-            {chapters.map((chapter) => {
+            {currentMilestoneChapters.map((chapter) => {
               const done =
-                firstBossWon || passedChapterIds.includes(chapter.id);
+                battleOutcomes[currentMilestone.id]?.status === "won" ||
+                passedChapterIds.includes(chapter.id);
               return (
                 <li data-done={done} key={chapter.id}>
                   <StateIcon state={done ? "done" : "current"} />
@@ -209,7 +248,7 @@ export default function WorldMapPage() {
               className="button button--primary button--wide"
               href={`/milestones/${currentMilestone.id}`}
             >
-              {firstBossWon ? "继续下一关" : firstMilestoneReady ? "发起挑战" : "继续闯关"}
+              {currentMilestoneReady ? "发起挑战" : "继续闯关"}
               <ArrowRight size={19} aria-hidden="true" />
             </Link>
           ) : (
@@ -224,7 +263,7 @@ export default function WorldMapPage() {
 
           <div className="boss-preview">
             <Shield size={21} strokeWidth={2.3} aria-hidden="true" />
-            <span>Boss：分数守卫</span>
+            <span>Boss：{currentBoss?.name ?? "等待编排"}</span>
             <ChevronRight size={18} aria-hidden="true" />
           </div>
         </aside>

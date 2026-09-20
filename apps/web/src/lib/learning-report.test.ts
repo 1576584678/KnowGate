@@ -69,6 +69,7 @@ describe("learning reports", () => {
     );
 
     expect(plan.prerequisitePath.map((node) => node.nodeId)).toEqual([
+      "math.arithmetic.multiplication_table",
       "math.arithmetic.division_inverse",
       "math.fractions_decimals.fraction_meaning",
     ]);

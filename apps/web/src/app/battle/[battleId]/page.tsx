@@ -218,7 +218,7 @@ export default function BattlePage() {
           <ArrowLeft size={20} aria-hidden="true" />
         </Link>
         <div>
-          <span>分数守卫</span>
+          <span>{battle.boss.name}</span>
           <strong>
             第 {battle.questionIndex + 1} / {battle.questionCount} 题
           </strong>
@@ -234,8 +234,8 @@ export default function BattlePage() {
             <Shield size={28} strokeWidth={2.1} aria-hidden="true" />
           </div>
           <div>
-            <span className="eyebrow">裂谷的守门者</span>
-            <strong>分数守卫</strong>
+            <span className="eyebrow">{battle.boss.epithet}</span>
+            <strong>{battle.boss.name}</strong>
           </div>
         </div>
         <div className="boss-health">
@@ -457,7 +457,7 @@ function BattleResult({
         <h1>{won ? "小关突破" : "先补强这个节点"}</h1>
         <p>
           {won
-            ? "分数守卫已经退开。你的章节进度和掌握度已经记录。"
+            ? `${battle.boss.name} 已经退开。你的章节进度和掌握度已经记录。`
             : "章节进度会保留。系统把错误定位到知识节点，不需要重学整关。"}
         </p>
         <div className="result-stars" aria-label={`${stars} 星结果`}>

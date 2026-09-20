@@ -3,12 +3,15 @@ import type {
   Chapter,
   ContentQuestion,
   KnowledgeNode,
+  LessonStep,
   Milestone,
+  QuestionKind,
 } from "@knowgate/domain";
+import { generateBossQuestionSet } from "@/lib/question-generator";
 
 export const gradeWorld = {
   id: "math.g4",
-  contentVersion: "2026.09.20.1",
+  contentVersion: "2026.09.20.2",
   subjectId: "math",
   grade: 4,
   name: "四年级 · 分数群岛",
@@ -16,6 +19,14 @@ export const gradeWorld = {
 };
 
 export const knowledgeNodes: KnowledgeNode[] = [
+  {
+    id: "math.arithmetic.multiplication_table",
+    name: "乘法口诀与倍数关系",
+    domain: "四则运算",
+    stage: "g2-g3",
+    prerequisites: [],
+    mastery: ["能熟练运用乘法口诀", "能识别一个数的倍数"],
+  },
   {
     id: "math.fractions_decimals.fraction_meaning",
     name: "分数意义与等值分数",
@@ -44,6 +55,73 @@ export const knowledgeNodes: KnowledgeNode[] = [
     prerequisites: ["math.fractions_decimals.fraction_meaning"],
     mastery: ["能比较分数大小", "能完成分数基本运算"],
   },
+  {
+    id: "math.fractions_decimals.fraction_equivalence",
+    name: "等值分数与通分",
+    domain: "分数、小数与比例",
+    stage: "g4",
+    prerequisites: ["math.fractions_decimals.fraction_meaning"],
+    mastery: ["能通过乘除同一个数找到等值分数", "能为分母不同的分数通分"],
+  },
+  {
+    id: "math.fractions_decimals.decimal_meaning",
+    name: "小数位值与读写",
+    domain: "分数、小数与比例",
+    stage: "g4",
+    prerequisites: ["math.fractions_decimals.fraction_equivalence"],
+    mastery: ["能理解十分位和百分位", "能在分数、小数之间转换"],
+  },
+  {
+    id: "math.fractions_decimals.decimal_operations",
+    name: "小数加减与估算",
+    domain: "分数、小数与比例",
+    stage: "g4-g5",
+    prerequisites: ["math.fractions_decimals.decimal_meaning"],
+    mastery: ["能对齐小数点完成加减", "能用估算检查结果"],
+  },
+  {
+    id: "math.geometry.shapes_relations",
+    name: "图形的平行、垂直与分类",
+    domain: "图形与几何",
+    stage: "g4",
+    prerequisites: ["math.arithmetic.multiplication_table"],
+    mastery: ["能识别平行与垂直关系", "能按边和角分类常见图形"],
+  },
+  {
+    id: "math.data_probability.charts",
+    name: "统计表与条形统计图",
+    domain: "数据与概率",
+    stage: "g4",
+    prerequisites: ["math.arithmetic.multiplication_table"],
+    mastery: ["能读取统计表与条形统计图", "能根据数据回答比较问题"],
+  },
+  {
+    id: "math.arithmetic.mixed_operations",
+    name: "含括号的混合运算",
+    domain: "四则运算",
+    stage: "g4",
+    prerequisites: ["math.arithmetic.division_inverse"],
+    mastery: ["能确定运算顺序", "能正确使用括号改变计算顺序"],
+  },
+  {
+    id: "math.modeling.word_problem_models",
+    name: "数量关系与问题建模",
+    domain: "问题解决",
+    stage: "g4",
+    prerequisites: [
+      "math.arithmetic.mixed_operations",
+      "math.fractions_decimals.decimal_operations",
+    ],
+    mastery: ["能从情境中提取数量关系", "能选择合适运算建立算式"],
+  },
+  {
+    id: "math.modeling.multi_step_problems",
+    name: "多步骤问题的计划与检验",
+    domain: "问题解决",
+    stage: "g4-g5",
+    prerequisites: ["math.modeling.word_problem_models"],
+    mastery: ["能拆分多步骤问题", "能用估算或逆运算检验答案"],
+  },
 ];
 
 const fractionBar = (
@@ -57,7 +135,7 @@ const fractionBar = (
   compareTo,
 });
 
-export const chapters: Chapter[] = [
+const foundationChapters: Chapter[] = [
   {
     id: "chapter.fraction.parts",
     milestoneId: "math.g4.milestone.01",
@@ -321,6 +399,507 @@ export const chapters: Chapter[] = [
   },
 ];
 
+type QuestionSeed = Omit<ContentQuestion, "id" | "nodeId">;
+
+function q(
+  kind: QuestionKind,
+  prompt: string,
+  options: string[],
+  answerIndex: number,
+  explanation: string,
+  damage = 1,
+): QuestionSeed {
+  return {
+    kind,
+    prompt,
+    options,
+    answerIndex,
+    explanation,
+    timeLimitSec: 45,
+    damage,
+  };
+}
+
+function createChapter(input: {
+  id: string;
+  milestoneId: string;
+  stageNo: number;
+  title: string;
+  summary: string;
+  estimatedMinutes: number;
+  nodeId: string;
+  hookTitle: string;
+  hookBody: string;
+  conceptTitle: string;
+  conceptBody: string;
+  questions: [QuestionSeed, QuestionSeed, QuestionSeed];
+}): Chapter {
+  const phases = ["guided", "practice", "quiz"] as const;
+  const steps: LessonStep[] = [
+    {
+      id: `${input.id}.hook`,
+      phase: "hook",
+      title: input.hookTitle,
+      body: input.hookBody,
+    },
+    {
+      id: `${input.id}.concept`,
+      phase: "concept",
+      title: input.conceptTitle,
+      body: input.conceptBody,
+    },
+    ...input.questions.map((question, index) => ({
+      id: `${input.id}.${phases[index]}`,
+      phase: phases[index],
+      title:
+        index === 0
+          ? "跟着完成一步"
+          : index === 1
+            ? "独立判断"
+            : "章节短测",
+      body:
+        index === 2
+          ? "答对后，本章的学习证据会由服务端记录。"
+          : "先说明理由，再选择答案。",
+      question: {
+        ...question,
+        id: `${input.id}.${phases[index]}.item`,
+        nodeId: input.nodeId,
+      },
+    })),
+  ];
+
+  return {
+    id: input.id,
+    milestoneId: input.milestoneId,
+    stageNo: input.stageNo,
+    title: input.title,
+    summary: input.summary,
+    estimatedMinutes: input.estimatedMinutes,
+    nodeIds: [input.nodeId],
+    steps,
+  };
+}
+
+function g4MilestoneId(stageNo: number) {
+  return `math.g4.milestone.${String(stageNo).padStart(2, "0")}`;
+}
+
+const additionalChapters: Chapter[] = [
+  createChapter({
+    id: "chapter.equivalence.expand",
+    milestoneId: g4MilestoneId(2),
+    stageNo: 1,
+    title: "把分数继续平均分",
+    summary: "通过同时乘同一个数，找到大小不变的分数。",
+    estimatedMinutes: 6,
+    nodeId: "math.fractions_decimals.fraction_equivalence",
+    hookTitle: "半张纸还能怎样说",
+    hookBody: "同一张纸取 1/2，把每份再平均分成 3 份，就得到 3/6。",
+    conceptTitle: "分子分母同时乘",
+    conceptBody: "1/2 的分子和分母都乘 3，得到 3/6，覆盖的区域仍然一样大。",
+    questions: [
+      q("apply", "1/3 的分子和分母同时乘 2，得到哪个分数？", ["2/6", "3/6", "2/3"], 0, "1×2=2，3×2=6，所以得到 2/6。"),
+      q("apply", "下面哪个分数与 2/5 相等？", ["6/15", "5/10", "2/10"], 0, "2/5 的分子和分母都乘 3，得到 6/15。"),
+      q("transfer", "把一个分数的分子和分母同时乘 4，分数大小怎样变化？", ["不变", "变成 4 倍", "变成 1/4"], 0, "同时乘同一个非零数，表示的大小不变。", 2),
+    ],
+  }),
+  createChapter({
+    id: "chapter.equivalence.simplify",
+    milestoneId: g4MilestoneId(2),
+    stageNo: 2,
+    title: "把分数化到更简洁",
+    summary: "通过同时除以公因数，判断两个分数是否相等。",
+    estimatedMinutes: 6,
+    nodeId: "math.fractions_decimals.fraction_equivalence",
+    hookTitle: "找出共同因数",
+    hookBody: "8/12 的分子和分母都能被 4 整除，可以同时除以 4。",
+    conceptTitle: "等值分数也能反向化简",
+    conceptBody: "分子和分母同时除以同一个非零数，分数大小不变，所以 8/12=2/3。",
+    questions: [
+      q("apply", "6/8 的分子和分母同时除以 2，得到哪个分数？", ["3/4", "2/4", "4/3"], 0, "6÷2=3，8÷2=4，所以得到 3/4。"),
+      q("judge", "3/9 和 1/3 相等。", ["正确", "错误"], 0, "3/9 的分子和分母同时除以 3，得到 1/3。"),
+      q("transfer", "哪一组分数相等？", ["4/10 和 2/5", "4/10 和 1/5", "2/5 和 2/10"], 0, "4/10 的分子和分母同时除以 2，得到 2/5。", 2),
+    ],
+  }),
+  createChapter({
+    id: "chapter.compare.fractions",
+    milestoneId: g4MilestoneId(3),
+    stageNo: 1,
+    title: "比较不同的分数",
+    summary: "根据分母与分子的关系判断分数大小。",
+    estimatedMinutes: 6,
+    nodeId: "math.fractions_decimals.fraction_operations",
+    hookTitle: "同一块蛋糕的两种分法",
+    hookBody: "比较 3/4 和 5/8 时，可以先化成同分母分数，也可以借助一半作为参照。",
+    conceptTitle: "先找共同标准",
+    conceptBody: "分母相同看分子；分子相同看分母。分母不同时，可以通分后再比较。",
+    questions: [
+      q("judge", "分子相同时，分母越大，分数越小。", ["正确", "错误"], 0, "整体相同时，分成更多份，每一份更小。"),
+      q("apply", "下面哪个分数最大？", ["1/2", "3/4", "2/3"], 1, "3/4=0.75，大于 1/2 和 2/3。"),
+      q("transfer", "3/5 和 4/7 比较，哪个更大？", ["3/5", "4/7", "一样大"], 0, "通分后分别为 21/35 和 20/35，所以 3/5 更大。", 2),
+    ],
+  }),
+  createChapter({
+    id: "chapter.fraction-operations.same-denominator",
+    milestoneId: g4MilestoneId(3),
+    stageNo: 2,
+    title: "同分母分数加减",
+    summary: "保持分母不变，只计算分子的加减。",
+    estimatedMinutes: 6,
+    nodeId: "math.fractions_decimals.fraction_operations",
+    hookTitle: "分母表示每一份的大小",
+    hookBody: "2/7 和 3/7 都表示七分之一份，合起来就是 5 个 1/7。",
+    conceptTitle: "单位相同才能直接加减",
+    conceptBody: "同分母分数相加或相减时，分母不变，只把分子相加或相减。",
+    questions: [
+      q("apply", "2/9 + 4/9 等于多少？", ["6/9", "6/18", "2/9"], 0, "分母不变，分子 2+4=6，得到 6/9。"),
+      q("apply", "7/10 - 3/10 等于多少？", ["4/10", "4/0", "10/10"], 0, "分母不变，分子 7-3=4，得到 4/10。"),
+      q("transfer", "一根绳子用去 2/8 米，还剩 5/8 米，原长是多少米？", ["7/8 米", "3/8 米", "7/16 米"], 0, "求原长应把用去和剩下的部分相加。", 2),
+    ],
+  }),
+  createChapter({
+    id: "chapter.decimals.meaning",
+    milestoneId: g4MilestoneId(4),
+    stageNo: 1,
+    title: "十分位与百分位",
+    summary: "从小数的数位理解它表示多少分之一。",
+    estimatedMinutes: 6,
+    nodeId: "math.fractions_decimals.decimal_meaning",
+    hookTitle: "一块钱里的十份",
+    hookBody: "1 元平均分成 10 角，3 角就是 0.3 元，也就是 3/10 元。",
+    conceptTitle: "小数点右边第一位是十分位",
+    conceptBody: "小数点后第一位表示十分之几，第二位表示百分之几。",
+    questions: [
+      q("identify", "0.7 表示下面哪个分数？", ["7/10", "7/100", "1/7"], 0, "十分位上的 7 表示 7 个 1/10。"),
+      q("apply", "25/100 写成小数是多少？", ["0.25", "2.5", "0.025"], 0, "百分之二十五写成小数是 0.25。"),
+      q("transfer", "3.06 中的 6 在什么数位上？", ["百分位", "十分位", "个位"], 0, "小数点后第二位是百分位。", 2),
+    ],
+  }),
+  createChapter({
+    id: "chapter.decimals.compare",
+    milestoneId: g4MilestoneId(4),
+    stageNo: 2,
+    title: "小数与分数互换",
+    summary: "借助数位和分数意义比较、转换小数。",
+    estimatedMinutes: 6,
+    nodeId: "math.fractions_decimals.decimal_meaning",
+    hookTitle: "从分数走到小数",
+    hookBody: "9/10=0.9，40/100=0.4，分母是 10 或 100 时可以对应到小数位。",
+    conceptTitle: "数位对齐后比较",
+    conceptBody: "比较小数先看整数部分，再看十分位、百分位，某一位没有数时补 0。",
+    questions: [
+      q("judge", "0.8 和 8/10 表示同样的大小。", ["正确", "错误"], 0, "0.8 就是 8 个 1/10。"),
+      q("apply", "下面哪个数最大？", ["0.6", "0.58", "0.5"], 0, "0.60 的十分位是 6，大于 0.58 和 0.50。"),
+      q("transfer", "把 1/4 写成小数是多少？", ["0.25", "0.4", "1.4"], 0, "1/4 等于 25/100，所以是 0.25。", 2),
+    ],
+  }),
+  createChapter({
+    id: "chapter.decimal-operations.add-subtract",
+    milestoneId: g4MilestoneId(5),
+    stageNo: 1,
+    title: "小数加减要对齐",
+    summary: "把小数点对齐后完成进退位计算。",
+    estimatedMinutes: 6,
+    nodeId: "math.fractions_decimals.decimal_operations",
+    hookTitle: "购物小票上的两位小数",
+    hookBody: "2.40 元和 1.35 元相加，需要让相同数位对齐。",
+    conceptTitle: "小数点对齐就是数位对齐",
+    conceptBody: "列竖式时小数点对齐，再按整数加减法计算，所得结果点上小数点。",
+    questions: [
+      q("apply", "2.4 + 1.35 等于多少？", ["3.75", "3.39", "1.59"], 0, "2.40+1.35=3.75。"),
+      q("apply", "5.2 - 1.75 等于多少？", ["3.45", "3.55", "4.45"], 0, "5.20-1.75=3.45。"),
+      q("transfer", "估算 9.8+2.1，最接近哪个结果？", ["约 12", "约 7", "约 20"], 0, "9.8 接近 10，2.1 接近 2，所以结果约 12。", 2),
+    ],
+  }),
+  createChapter({
+    id: "chapter.decimal-operations.estimate",
+    milestoneId: g4MilestoneId(5),
+    stageNo: 2,
+    title: "用估算检查小数结果",
+    summary: "先估计数量级，再完成准确计算。",
+    estimatedMinutes: 6,
+    nodeId: "math.fractions_decimals.decimal_operations",
+    hookTitle: "答案是否合理",
+    hookBody: "计算前先估计结果大约是多少，能及时发现小数点位置错误。",
+    conceptTitle: "四舍五入到整数再估算",
+    conceptBody: "把小数估计成接近的整数，可以快速判断加减结果的合理范围。",
+    questions: [
+      q("judge", "4.9+3.05 的结果一定小于 8。", ["错误", "正确"], 0, "4.9 接近 5，3.05 接近 3，结果接近 8 且略大于 7.9。"),
+      q("apply", "8.02-3.9 最接近哪个数？", ["4", "5", "12"], 0, "8.02 接近 8，3.9 接近 4，差接近 4。"),
+      q("transfer", "哪一项计算最需要检查小数点位置？", ["0.45+0.3=0.75", "0.45+0.3=4.5", "0.45+0.3=0.48"], 1, "0.45 与 0.30 相加应得到 0.75，不是 4.5。", 2),
+    ],
+  }),
+  createChapter({
+    id: "chapter.geometry.parallel-perpendicular",
+    milestoneId: g4MilestoneId(6),
+    stageNo: 1,
+    title: "平行与垂直",
+    summary: "从方向和交点判断两条直线的位置关系。",
+    estimatedMinutes: 6,
+    nodeId: "math.geometry.shapes_relations",
+    hookTitle: "铁轨与窗框",
+    hookBody: "铁轨保持同样距离，窗框相邻两边相交成直角。",
+    conceptTitle: "同一平面内看关系",
+    conceptBody: "永不相交的两条直线互相平行；相交成直角的两条直线互相垂直。",
+    questions: [
+      q("identify", "两条直线相交成直角，它们是什么关系？", ["互相垂直", "互相平行", "完全重合"], 0, "相交成直角是垂直关系。"),
+      q("judge", "长方形的相邻两条边互相垂直。", ["正确", "错误"], 0, "长方形四个角都是直角。"),
+      q("transfer", "在同一平面内，两条直线都垂直于同一条直线，它们互相怎样？", ["平行", "垂直", "相交成锐角"], 0, "都与同一条直线成直角，它们方向相同，互相平行。", 2),
+    ],
+  }),
+  createChapter({
+    id: "chapter.geometry.quadrilaterals",
+    milestoneId: g4MilestoneId(6),
+    stageNo: 2,
+    title: "按边和角认识四边形",
+    summary: "用边、角特征区分平行四边形和梯形。",
+    estimatedMinutes: 6,
+    nodeId: "math.geometry.shapes_relations",
+    hookTitle: "四边形分类柜",
+    hookBody: "先观察有几组对边平行，再看角是不是直角。",
+    conceptTitle: "特征决定名称",
+    conceptBody: "两组对边分别平行的四边形是平行四边形；只有一组对边平行的四边形是梯形。",
+    questions: [
+      q("identify", "只有一组对边平行的四边形是什么？", ["梯形", "平行四边形", "长方形"], 0, "只有一组对边平行的四边形是梯形。"),
+      q("judge", "正方形也是特殊的平行四边形。", ["正确", "错误"], 0, "正方形的两组对边分别平行。"),
+      q("transfer", "一个四边形四边相等，但四个角不是直角，它仍一定是正方形吗？", ["不一定", "一定", "一定不是平行四边形"], 0, "菱形也四边相等；若角不是直角，就不是正方形。", 2),
+    ],
+  }),
+  createChapter({
+    id: "chapter.charts.read",
+    milestoneId: g4MilestoneId(7),
+    stageNo: 1,
+    title: "读懂条形统计图",
+    summary: "根据横轴、纵轴和直条高度读取数量。",
+    estimatedMinutes: 6,
+    nodeId: "math.data_probability.charts",
+    hookTitle: "一周阅读量",
+    hookBody: "统计图中每根直条代表一个类别，高度对应数量。",
+    conceptTitle: "先看单位，再读数据",
+    conceptBody: "读图时先确认一格代表多少，再比较各直条的高度。",
+    questions: [
+      q("identify", "条形统计图中直条越高通常表示什么？", ["数量越多", "名称越长", "时间越短"], 0, "直条高度表示对应类别的数量。"),
+      q("apply", "周一 8 本，周二 5 本，周二比周一少几本？", ["3 本", "13 本", "5 本"], 0, "8-5=3。"),
+      q("transfer", "统计图一格表示 4 人，某直条高 3 格，对应多少人？", ["12 人", "7 人", "3 人"], 0, "3×4=12。", 2),
+    ],
+  }),
+  createChapter({
+    id: "chapter.charts.compare",
+    milestoneId: g4MilestoneId(7),
+    stageNo: 2,
+    title: "从统计表回答比较问题",
+    summary: "从多行数据中找最大、最小和总量。",
+    estimatedMinutes: 6,
+    nodeId: "math.data_probability.charts",
+    hookTitle: "数据表里的重点",
+    hookBody: "先定位项目和数量，再根据问题做加减或排序。",
+    conceptTitle: "按问题选择信息",
+    conceptBody: "求总数用加法，求相差用减法，比较大小需先找到对应数据。",
+    questions: [
+      q("apply", "四个班种树分别为 12、15、9、14 棵，最多的是哪个数？", ["15", "12", "9"], 0, "15 是四个数中最大的。"),
+      q("apply", "12+15+9+14 的总数是？", ["50", "40", "45"], 0, "12+15+9+14=50。"),
+      q("transfer", "甲组 18 人，乙组比甲组少 6 人，两组一共多少人？", ["30 人", "24 人", "36 人"], 0, "乙组 18-6=12 人，合计 18+12=30 人。", 2),
+    ],
+  }),
+  createChapter({
+    id: "chapter.mixed-order.basic",
+    milestoneId: g4MilestoneId(8),
+    stageNo: 1,
+    title: "先乘除，后加减",
+    summary: "在同一算式中按标准顺序确定计算步骤。",
+    estimatedMinutes: 6,
+    nodeId: "math.arithmetic.mixed_operations",
+    hookTitle: "不能只从左到右",
+    hookBody: "3+4×2 要先算 4×2，再与 3 相加。",
+    conceptTitle: "运算顺序决定结果",
+    conceptBody: "没有括号时先算乘除，再算加减；同级运算从左到右。",
+    questions: [
+      q("apply", "3+4×2 等于多少？", ["11", "14", "10"], 0, "先算 4×2=8，再算 3+8=11。"),
+      q("apply", "20-12÷4 等于多少？", ["17", "2", "8"], 0, "先算 12÷4=3，再算 20-3=17。"),
+      q("transfer", "下面哪一步应先算？8+15÷3×2", ["15÷3", "8+15", "3×2 先于除法"], 0, "乘除同级，按从左到右先算 15÷3。", 2),
+    ],
+  }),
+  createChapter({
+    id: "chapter.mixed-order.parentheses",
+    milestoneId: g4MilestoneId(8),
+    stageNo: 2,
+    title: "括号改变顺序",
+    summary: "先算括号内，再按规则完成其余运算。",
+    estimatedMinutes: 6,
+    nodeId: "math.arithmetic.mixed_operations",
+    hookTitle: "先合并再乘",
+    hookBody: "(3+4)×2 先算括号里的 7，再乘 2。",
+    conceptTitle: "括号优先",
+    conceptBody: "算式中有括号时，先算括号内的部分，再继续计算括号外。",
+    questions: [
+      q("apply", "(3+4)×2 等于多少？", ["14", "11", "9"], 0, "先算 3+4=7，再算 7×2=14。"),
+      q("apply", "36÷(2+4) 等于多少？", ["6", "20", "12"], 0, "先算 2+4=6，再算 36÷6=6。"),
+      q("transfer", "要让 2+3×5 先算加法，应该怎样改？", ["(2+3)×5", "2+(3×5)", "2+3×(5+1)"], 0, "给 2+3 加括号，可以优先计算。", 2),
+    ],
+  }),
+  createChapter({
+    id: "chapter.modeling.quantity",
+    milestoneId: g4MilestoneId(9),
+    stageNo: 1,
+    title: "找到数量关系",
+    summary: "从情境中区分总量、份数和每份数。",
+    estimatedMinutes: 6,
+    nodeId: "math.modeling.word_problem_models",
+    hookTitle: "一句话里的关系",
+    hookBody: "每盒 6 支，共 4 盒，求总数就是求 4 个 6 是多少。",
+    conceptTitle: "先找每份数和份数",
+    conceptBody: "每份数×份数=总数；知道总数和一份数，也可以用除法求份数。",
+    questions: [
+      q("apply", "每盒 6 支，4 盒一共多少支？", ["24 支", "10 支", "18 支"], 0, "6×4=24。"),
+      q("apply", "24 支铅笔平均放进 4 盒，每盒多少支？", ["6 支", "8 支", "20 支"], 0, "24÷4=6。"),
+      q("transfer", "每本书 18 元，买 3 本付 100 元，应找回多少元？", ["46 元", "54 元", "82 元"], 0, "3 本书 54 元，100-54=46 元。", 2),
+    ],
+  }),
+  createChapter({
+    id: "chapter.modeling.compare",
+    milestoneId: g4MilestoneId(9),
+    stageNo: 2,
+    title: "比较数量差与倍数",
+    summary: "根据“多多少”“是几倍”选择加减或乘除。",
+    estimatedMinutes: 6,
+    nodeId: "math.modeling.word_problem_models",
+    hookTitle: "关键词背后的关系",
+    hookBody: "“比……多”通常求差，“是……的几倍”通常求倍数关系。",
+    conceptTitle: "先说关系，再列式",
+    conceptBody: "画一条短线和长线，可以帮助看清谁多谁少以及相差多少。",
+    questions: [
+      q("apply", "小明 12 岁，小红 9 岁，小明比小红大几岁？", ["3 岁", "21 岁", "12 岁"], 0, "12-9=3。"),
+      q("apply", "一箱有 8 瓶，另一箱是它的 3 倍，另一箱有多少瓶？", ["24 瓶", "11 瓶", "16 瓶"], 0, "8×3=24。"),
+      q("transfer", "36 人分成 4 队，每队人数相同；每队再分 3 组，每组几人？", ["3 人", "12 人", "9 人"], 0, "每队 36÷4=9 人，每组 9÷3=3 人。", 2),
+    ],
+  }),
+  createChapter({
+    id: "chapter.multi-step.plan",
+    milestoneId: g4MilestoneId(10),
+    stageNo: 1,
+    title: "把多步骤问题拆开",
+    summary: "先找中间量，再解决最终问题。",
+    estimatedMinutes: 7,
+    nodeId: "math.modeling.multi_step_problems",
+    hookTitle: "先解决中间问题",
+    hookBody: "想知道还剩多少，往往要先求出已经用了多少。",
+    conceptTitle: "画计划再计算",
+    conceptBody: "把问题拆成两步：先求中间量，再把中间量带入下一步。",
+    questions: [
+      q("apply", "买 3 盒每盒 8 支，共多少支？", ["24 支", "11 支", "16 支"], 0, "3×8=24。"),
+      q("apply", "24 支用去 9 支，还剩多少支？", ["15 支", "33 支", "16 支"], 0, "24-9=15。"),
+      q("transfer", "买 3 盒每盒 8 支，用去 9 支，还剩多少支？", ["15 支", "24 支", "18 支"], 0, "先求 3×8=24，再算 24-9=15。", 2),
+    ],
+  }),
+  createChapter({
+    id: "chapter.multi-step.verify",
+    milestoneId: g4MilestoneId(10),
+    stageNo: 2,
+    title: "用逆运算检验答案",
+    summary: "从结果倒推条件，检查多步骤计算是否合理。",
+    estimatedMinutes: 7,
+    nodeId: "math.modeling.multi_step_problems",
+    hookTitle: "算完还要回头检查",
+    hookBody: "如果总价减找回的钱等于应付金额，计算就更可信。",
+    conceptTitle: "逆运算和估算一起用",
+    conceptBody: "加法用减法检验，乘法用除法检验，同时看结果是否在合理范围内。",
+    questions: [
+      q("judge", "乘法结果可以用除法检验。", ["正确", "错误"], 0, "积除以一个因数应得到另一个因数。"),
+      q("apply", "6×7=42，用哪道除法可以直接检验？", ["42÷6=7", "42+6=48", "7-6=1"], 0, "42÷6 应等于 7。"),
+      q("transfer", "一辆车每时行 60 千米，行 3 时后还剩 40 千米，全程多少千米？", ["220 千米", "180 千米", "100 千米"], 0, "先求已行 60×3=180，再加剩余 40，得到 220 千米。", 2),
+    ],
+  }),
+];
+
+export const chapters: Chapter[] = [...foundationChapters, ...additionalChapters];
+
+const additionalBossSeeds: Record<number, QuestionSeed[]> = {
+  2: [
+    q("identify", "4/6 化简后是哪个分数？", ["2/3", "2/6", "4/3"], 0, "分子和分母同时除以 2，得到 2/3。"),
+    q("judge", "1/2 和 3/6 大小相等。", ["正确", "错误"], 0, "1/2 的分子和分母同时乘 3，得到 3/6。"),
+    q("apply", "下面哪个分数与 3/4 相等？", ["9/12", "4/3", "3/12"], 0, "3/4 的分子和分母同时乘 3，得到 9/12。"),
+    q("transfer", "12/16 与哪个分数相等？", ["3/4", "4/3", "6/8 的一半"], 0, "分子和分母同时除以 4，得到 3/4。", 2),
+  ],
+  3: [
+    q("judge", "分母相同时，分子越大分数越大。", ["正确", "错误"], 0, "每一份大小相同，取走的份数越多，分数越大。"),
+    q("apply", "5/8 + 2/8 等于多少？", ["7/8", "7/16", "3/8"], 0, "同分母相加，分子相加。"),
+    q("apply", "9/11 - 4/11 等于多少？", ["5/11", "5/0", "13/11"], 0, "同分母相减，分子 9-4=5。"),
+    q("transfer", "2/5 和 3/8 哪个更大？", ["2/5", "3/8", "一样大"], 0, "通分后分别为 16/40 和 15/40。", 2),
+  ],
+  4: [
+    q("identify", "0.09 表示哪个分数？", ["9/100", "9/10", "1/9"], 0, "百分位上的 9 表示 9/100。"),
+    q("apply", "7/10 写成小数是多少？", ["0.7", "7.10", "0.07"], 0, "十分之七写作 0.7。"),
+    q("judge", "0.5 和 5/10 相等。", ["正确", "错误"], 0, "0.5 表示 5 个十分之一。"),
+    q("transfer", "0.68 中的 6 表示多少？", ["6 个十分之一", "6 个百分之一", "6 个一"], 0, "小数点后第一位是十分位。", 2),
+  ],
+  5: [
+    q("apply", "1.2+0.9 等于多少？", ["2.1", "1.11", "2.11"], 0, "1.2+0.9=2.1。"),
+    q("apply", "4.5-1.8 等于多少？", ["2.7", "3.3", "2.3"], 0, "4.5-1.8=2.7。"),
+    q("judge", "小数加减时要把末位对齐。", ["错误", "正确"], 0, "应先把小数点对齐，也就是相同数位对齐。"),
+    q("transfer", "一根 3.2 米绳子剪去 1.45 米，还剩多少米？", ["1.75 米", "2.75 米", "1.85 米"], 0, "3.20-1.45=1.75。", 2),
+  ],
+  6: [
+    q("identify", "长方形的对边通常是什么关系？", ["互相平行", "互相垂直", "相交成锐角"], 0, "长方形两组对边分别平行。"),
+    q("judge", "两条直线相交成直角，它们互相垂直。", ["正确", "错误"], 0, "垂直关系由直角确定。"),
+    q("apply", "只有一组对边平行的四边形叫什么？", ["梯形", "平行四边形", "正方形"], 0, "梯形只有一组对边平行。"),
+    q("transfer", "正方形具备哪组特征？", ["四边相等且有四个直角", "只有一组对边平行", "没有直角"], 0, "正方形四边相等，四角都是直角。", 2),
+  ],
+  7: [
+    q("identify", "条形统计图中一格表示 5 人，4 格表示多少人？", ["20 人", "9 人", "15 人"], 0, "4×5=20。"),
+    q("apply", "三天借书 12、18、15 本，总数是多少？", ["45 本", "40 本", "35 本"], 0, "12+18+15=45。"),
+    q("judge", "统计表中数量最大的直条通常最高。", ["正确", "错误"], 0, "同一统计图中直条高度对应数量。"),
+    q("transfer", "甲数 32，乙数比甲数少 7，两数之和是多少？", ["57", "25", "39"], 0, "乙数 32-7=25，和是 32+25=57。", 2),
+  ],
+  8: [
+    q("apply", "6+3×4 等于多少？", ["18", "36", "15"], 0, "先乘后加，6+12=18。"),
+    q("apply", "(6+3)×4 等于多少？", ["36", "18", "24"], 0, "先算括号内 9，再乘 4，得到 36。"),
+    q("judge", "同级运算通常从左到右计算。", ["正确", "错误"], 0, "乘除同级或加减同级时按从左到右。"),
+    q("transfer", "48÷(3+5) 等于多少？", ["6", "11", "16"], 0, "先算 3+5=8，再算 48÷8=6。", 2),
+  ],
+  9: [
+    q("apply", "每盒 12 个，5 盒一共多少个？", ["60 个", "17 个", "50 个"], 0, "12×5=60。"),
+    q("apply", "小明 15 岁，弟弟比他小 6 岁，弟弟几岁？", ["9 岁", "21 岁", "6 岁"], 0, "15-6=9。"),
+    q("judge", "“是它的 4 倍”通常用乘法求。", ["正确", "错误"], 0, "求一个数的几倍，用这个数乘倍数。"),
+    q("transfer", "每支笔 7 元，买 6 支付 50 元，应找回多少元？", ["8 元", "42 元", "10 元"], 0, "6 支 42 元，50-42=8 元。", 2),
+  ],
+  10: [
+    q("apply", "一辆车每时行 50 千米，3 时行多少千米？", ["150 千米", "53 千米", "100 千米"], 0, "50×3=150。"),
+    q("apply", "150 千米后还剩 35 千米，全程多少千米？", ["185 千米", "115 千米", "175 千米"], 0, "150+35=185。"),
+    q("judge", "多步骤问题可以先求中间量。", ["正确", "错误"], 0, "拆出中间量能让最终关系更清楚。"),
+    q("transfer", "每盒 8 支，买 4 盒用去 12 支，还剩多少支？", ["20 支", "32 支", "24 支"], 0, "先求 8×4=32，再算 32-12=20。", 2),
+  ],
+};
+
+const additionalBossQuestions = Object.entries(additionalBossSeeds).flatMap(
+  ([stageText, seeds]) => {
+    const stageNo = Number(stageText);
+    const milestoneId = g4MilestoneId(stageNo);
+    const nodeId = chapters.find(
+      (chapter) => chapter.milestoneId === milestoneId,
+    )?.nodeIds[0];
+    if (!nodeId) throw new Error(`MISSING_STAGE_NODE:${stageNo}`);
+
+    const chapterQuestions = chapters
+      .filter((chapter) => chapter.milestoneId === milestoneId)
+      .flatMap((chapter) =>
+        chapter.steps.flatMap((step) => (step.question ? [step.question] : [])),
+      );
+    const seedQuestions = seeds.map((seed, index) => ({
+      ...seed,
+      id: `item.g4.${String(stageNo).padStart(2, "0")}.seed.${index + 1}`,
+      nodeId,
+    }));
+
+    return generateBossQuestionSet({
+      sourceQuestions: [...chapterQuestions, ...seedQuestions],
+      seed: 20260900 + stageNo,
+      questionCount: 10,
+      idPrefix: `item.g4.boss.${String(stageNo).padStart(2, "0")}`,
+    });
+  },
+);
+
 export const milestones: Milestone[] = [
   {
     id: "math.g4.milestone.01",
@@ -329,7 +908,9 @@ export const milestones: Milestone[] = [
     theme: "看懂部分与整体",
     summary: "辨认分数、比较同分子的分数，并找出等值分数。",
     nodeIds: ["math.fractions_decimals.fraction_meaning"],
-    chapterIds: chapters.map((chapter) => chapter.id),
+    chapterIds: chapters
+      .filter((chapter) => chapter.milestoneId === g4MilestoneId(1))
+      .map((chapter) => chapter.id),
     bossId: "boss.math.fraction_warden",
   },
   {
@@ -338,8 +919,10 @@ export const milestones: Milestone[] = [
     name: "等值回廊",
     theme: "在不同写法间穿梭",
     summary: "继续扩展分数意义与等值关系。",
-    nodeIds: ["math.fractions_decimals.fraction_meaning"],
-    chapterIds: [],
+    nodeIds: ["math.fractions_decimals.fraction_equivalence"],
+    chapterIds: chapters
+      .filter((chapter) => chapter.milestoneId === g4MilestoneId(2))
+      .map((chapter) => chapter.id),
     bossId: "boss.math.equivalent_keeper",
   },
   {
@@ -349,7 +932,9 @@ export const milestones: Milestone[] = [
     theme: "判断分数大小",
     summary: "比较不同分子和分母的分数。",
     nodeIds: ["math.fractions_decimals.fraction_operations"],
-    chapterIds: [],
+    chapterIds: chapters
+      .filter((chapter) => chapter.milestoneId === g4MilestoneId(3))
+      .map((chapter) => chapter.id),
     bossId: "boss.math.compare_tower",
   },
   {
@@ -359,7 +944,9 @@ export const milestones: Milestone[] = [
     theme: "连接分数与小数",
     summary: "理解小数位值并完成基础互换。",
     nodeIds: ["math.fractions_decimals.decimal_meaning"],
-    chapterIds: [],
+    chapterIds: chapters
+      .filter((chapter) => chapter.milestoneId === g4MilestoneId(4))
+      .map((chapter) => chapter.id),
     bossId: "boss.math.decimal_ferry",
   },
   {
@@ -369,7 +956,9 @@ export const milestones: Milestone[] = [
     theme: "进行小数运算",
     summary: "完成小数加减并估计结果。",
     nodeIds: ["math.fractions_decimals.decimal_operations"],
-    chapterIds: [],
+    chapterIds: chapters
+      .filter((chapter) => chapter.milestoneId === g4MilestoneId(5))
+      .map((chapter) => chapter.id),
     bossId: "boss.math.precision_engineer",
   },
   {
@@ -379,7 +968,9 @@ export const milestones: Milestone[] = [
     theme: "理解图形的性质",
     summary: "识别平行、垂直和常见图形关系。",
     nodeIds: ["math.geometry.shapes_relations"],
-    chapterIds: [],
+    chapterIds: chapters
+      .filter((chapter) => chapter.milestoneId === g4MilestoneId(6))
+      .map((chapter) => chapter.id),
     bossId: "boss.math.shape_surveyor",
   },
   {
@@ -389,7 +980,9 @@ export const milestones: Milestone[] = [
     theme: "读取统计信息",
     summary: "从统计图与表格中提取信息。",
     nodeIds: ["math.data_probability.charts"],
-    chapterIds: [],
+    chapterIds: chapters
+      .filter((chapter) => chapter.milestoneId === g4MilestoneId(7))
+      .map((chapter) => chapter.id),
     bossId: "boss.math.data_prism",
   },
   {
@@ -399,7 +992,9 @@ export const milestones: Milestone[] = [
     theme: "掌握运算顺序",
     summary: "使用括号并按顺序完成混合运算。",
     nodeIds: ["math.arithmetic.mixed_operations"],
-    chapterIds: [],
+    chapterIds: chapters
+      .filter((chapter) => chapter.milestoneId === g4MilestoneId(8))
+      .map((chapter) => chapter.id),
     bossId: "boss.math.operation_core",
   },
   {
@@ -409,7 +1004,9 @@ export const milestones: Milestone[] = [
     theme: "把题意变成算式",
     summary: "提取数量关系并完成多步骤问题。",
     nodeIds: ["math.modeling.word_problem_models"],
-    chapterIds: [],
+    chapterIds: chapters
+      .filter((chapter) => chapter.milestoneId === g4MilestoneId(9))
+      .map((chapter) => chapter.id),
     bossId: "boss.math.context_hub",
   },
   {
@@ -419,12 +1016,14 @@ export const milestones: Milestone[] = [
     theme: "综合迁移",
     summary: "连接本世界核心能力并完成终结挑战。",
     nodeIds: ["math.modeling.multi_step_problems"],
-    chapterIds: [],
+    chapterIds: chapters
+      .filter((chapter) => chapter.milestoneId === g4MilestoneId(10))
+      .map((chapter) => chapter.id),
     bossId: "boss.math.final_algorithm",
   },
 ];
 
-export const bossQuestions: ContentQuestion[] = [
+const firstBossQuestions: ContentQuestion[] = [
   {
     id: "item.fraction.boss.01",
     nodeId: "math.fractions_decimals.fraction_meaning",
@@ -554,6 +1153,11 @@ export const bossQuestions: ContentQuestion[] = [
   },
 ];
 
+export const bossQuestions: ContentQuestion[] = [
+  ...firstBossQuestions,
+  ...additionalBossQuestions,
+];
+
 export const bosses: Boss[] = [
   {
     id: "boss.math.fraction_warden",
@@ -562,7 +1166,106 @@ export const bosses: Boss[] = [
     epithet: "裂谷的守门者",
     hp: 9,
     initialDistance: 5,
-    questionIds: bossQuestions.map((question) => question.id),
+    questionIds: firstBossQuestions.map((question) => question.id),
+  },
+  {
+    id: "boss.math.equivalent_keeper",
+    milestoneId: g4MilestoneId(2),
+    name: "等值回廊守望者",
+    epithet: "把守等价之路",
+    hp: 10,
+    initialDistance: 5,
+    questionIds: additionalBossQuestions
+      .filter((question) => question.id.startsWith("item.g4.boss.02."))
+      .map((question) => question.id),
+  },
+  {
+    id: "boss.math.compare_tower",
+    milestoneId: g4MilestoneId(3),
+    name: "比较高塔",
+    epithet: "衡量大小之人",
+    hp: 10,
+    initialDistance: 5,
+    questionIds: additionalBossQuestions
+      .filter((question) => question.id.startsWith("item.g4.boss.03."))
+      .map((question) => question.id),
+  },
+  {
+    id: "boss.math.decimal_ferry",
+    milestoneId: g4MilestoneId(4),
+    name: "小数摆渡人",
+    epithet: "看管十分位与百分位",
+    hp: 10,
+    initialDistance: 5,
+    questionIds: additionalBossQuestions
+      .filter((question) => question.id.startsWith("item.g4.boss.04."))
+      .map((question) => question.id),
+  },
+  {
+    id: "boss.math.precision_engineer",
+    milestoneId: g4MilestoneId(5),
+    name: "精度工程师",
+    epithet: "校准每一个小数点",
+    hp: 10,
+    initialDistance: 5,
+    questionIds: additionalBossQuestions
+      .filter((question) => question.id.startsWith("item.g4.boss.05."))
+      .map((question) => question.id),
+  },
+  {
+    id: "boss.math.shape_surveyor",
+    milestoneId: g4MilestoneId(6),
+    name: "图形测绘师",
+    epithet: "判定边角关系",
+    hp: 10,
+    initialDistance: 5,
+    questionIds: additionalBossQuestions
+      .filter((question) => question.id.startsWith("item.g4.boss.06."))
+      .map((question) => question.id),
+  },
+  {
+    id: "boss.math.data_prism",
+    milestoneId: g4MilestoneId(7),
+    name: "数据棱镜",
+    epithet: "折射统计信息",
+    hp: 10,
+    initialDistance: 5,
+    questionIds: additionalBossQuestions
+      .filter((question) => question.id.startsWith("item.g4.boss.07."))
+      .map((question) => question.id),
+  },
+  {
+    id: "boss.math.operation_core",
+    milestoneId: g4MilestoneId(8),
+    name: "运算中枢",
+    epithet: "控制运算顺序",
+    hp: 10,
+    initialDistance: 5,
+    questionIds: additionalBossQuestions
+      .filter((question) => question.id.startsWith("item.g4.boss.08."))
+      .map((question) => question.id),
+  },
+  {
+    id: "boss.math.context_hub",
+    milestoneId: g4MilestoneId(9),
+    name: "情境枢纽",
+    epithet: "编织数量关系",
+    hp: 10,
+    initialDistance: 5,
+    questionIds: additionalBossQuestions
+      .filter((question) => question.id.startsWith("item.g4.boss.09."))
+      .map((question) => question.id),
+  },
+  {
+    id: "boss.math.final_algorithm",
+    milestoneId: g4MilestoneId(10),
+    name: "终局演算者",
+    epithet: "综合本世界的能力",
+    hp: 10,
+    initialDistance: 5,
+    questionIds: additionalBossQuestions
+      .filter((question) => question.id.startsWith("item.g4.boss.10."))
+      .map((question) => question.id),
   },
 ];
 

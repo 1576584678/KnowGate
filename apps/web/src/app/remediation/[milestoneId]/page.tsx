@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -14,12 +14,14 @@ import {
 import { calculateMasteryBreakdown } from "@knowgate/domain";
 import {
   bossQuestions,
+  bosses,
   getMilestone,
   getNode,
 } from "@/content/math-grade4";
 import { FractionVisual } from "@/components/fraction-visual";
 import { useProgress } from "@/components/progress-provider";
 import { MasteryMeter, PageIntro, StatusPill } from "@/components/ui";
+import { trackLearningEvent } from "@/lib/tracking";
 
 export default function RemediationPage() {
   const params = useParams<{ milestoneId: string }>();
@@ -28,15 +30,22 @@ export default function RemediationPage() {
   const milestone = getMilestone(params.milestoneId);
   const [exerciseIndex, setExerciseIndex] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const trackedStart = useRef(false);
+  const trackedCompletion = useRef(false);
 
   const exercises = useMemo(() => {
     const missed = outcome?.mistakes ?? [];
+    const boss = bosses.find((item) => item.id === milestone?.bossId);
+    const milestoneQuestionIds = new Set(boss?.questionIds ?? []);
+    const candidateQuestions = bossQuestions.filter((question) =>
+      milestoneQuestionIds.has(question.id),
+    );
     const missedQuestions = missed
       .map((mistake) =>
         bossQuestions.find((question) => question.id === mistake.questionId),
       )
       .filter((question) => question !== undefined);
-    const fallback = bossQuestions.filter((question) =>
+    const fallback = candidateQuestions.filter((question) =>
       missed.every((mistake) => mistake.questionId !== question.id),
     );
     const items =
@@ -53,7 +62,7 @@ export default function RemediationPage() {
       explanation: question.explanation,
       visual: question.visual,
     }));
-  }, [outcome]);
+  }, [milestone?.bossId, outcome]);
 
   const exercise = exercises[exerciseIndex];
   const answered = selectedIndex !== null;
@@ -66,6 +75,40 @@ export default function RemediationPage() {
     totalChapters: milestoneChapterIds.length,
     bossOutcome: outcome,
   });
+  const currentNode = getNode(exercise?.nodeId);
+
+  useEffect(() => {
+    if (!milestone || trackedStart.current) return;
+    trackedStart.current = true;
+    trackLearningEvent({
+      eventType: "remediation_started",
+      entityType: "milestone",
+      entityId: milestone.id,
+      payload: {
+        bossId: milestone.bossId,
+        mistakeCount: outcome?.mistakes.length ?? 0,
+        exerciseCount: exercises.length,
+      },
+    });
+  }, [exercises.length, milestone, outcome?.mistakes.length]);
+
+  useEffect(() => {
+    const finished =
+      correct &&
+      exercises.length > 0 &&
+      exerciseIndex === exercises.length - 1;
+    if (!milestone || !finished || trackedCompletion.current) return;
+    trackedCompletion.current = true;
+    trackLearningEvent({
+      eventType: "remediation_completed",
+      entityType: "milestone",
+      entityId: milestone.id,
+      payload: {
+        bossId: milestone.bossId,
+        exerciseCount: exercises.length,
+      },
+    });
+  }, [correct, exerciseIndex, exercises.length, milestone]);
 
   return (
     <div className="page-shell">
@@ -85,16 +128,18 @@ export default function RemediationPage() {
           <Target size={24} aria-hidden="true" />
           <span className="eyebrow">当前节点</span>
           <h2>
-            {getNode(exercise?.nodeId)?.name ?? "分数意义与等值分数"}
+            {currentNode?.name ?? "当前薄弱节点"}
           </h2>
           <MasteryMeter
             label="补强前掌握度"
             value={mastery.score}
           />
           <ul>
-            <li>先看整体被平均分成几份</li>
-            <li>再确认分子表示取走几份</li>
-            <li>等值分数要同时乘或除以同一个数</li>
+            {(currentNode?.mastery ?? ["先完成针对性练习，再回到 Boss 验证。"]).map(
+              (item) => (
+                <li key={item}>{item}</li>
+              ),
+            )}
           </ul>
         </aside>
 

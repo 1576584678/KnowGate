@@ -13,7 +13,12 @@ import {
   Target,
 } from "lucide-react";
 import { calculateMasteryBreakdown } from "@knowgate/domain";
-import { chapters, getMilestone, getNode } from "@/content/math-grade4";
+import {
+  chapters,
+  getBoss,
+  getMilestone,
+  getNode,
+} from "@/content/math-grade4";
 import { useProgress } from "@/components/progress-provider";
 import { MasteryMeter, PageIntro, StatusPill } from "@/components/ui";
 
@@ -47,6 +52,7 @@ export default function MilestonePage() {
   ).length;
   const ready =
     milestoneChapters.length > 0 && passedCount === milestoneChapters.length;
+  const boss = getBoss(milestone.bossId);
   const mastery = calculateMasteryBreakdown({
     completedChapters: passedCount,
     totalChapters: milestoneChapters.length,
@@ -65,7 +71,8 @@ export default function MilestonePage() {
           <StatusPill>内容制作中</StatusPill>
           <h1>{milestone.name}</h1>
           <p>
-            第一版只完成第一个小关的垂直切片。这里保留完整路线位置，不用占位题冒充可用内容。
+            这个阶段的内容正在编排，完成后会按同一套章节、短测和 Boss
+            验证流程开放。
           </p>
           <Link className="button button--secondary" href="/">
             <ArrowLeft size={18} aria-hidden="true" />
@@ -128,7 +135,7 @@ export default function MilestonePage() {
           <div className="section-heading">
             <div>
               <span className="eyebrow">学习章节</span>
-              <h2>先学 3 个短章节</h2>
+              <h2>先学 {milestoneChapters.length} 个短章节</h2>
             </div>
             <span className="section-count">
               {passedCount}/{milestoneChapters.length} 完成
@@ -190,8 +197,12 @@ export default function MilestonePage() {
               <Shield size={27} strokeWidth={2.2} aria-hidden="true" />
             </div>
             <span className="eyebrow">Boss 验证</span>
-            <h2>分数守卫</h2>
-            <p>9 点生命，Boss 前进 5 步会碰到你。连续答对会触发额外伤害。</p>
+            <h2>{boss?.name ?? "等待编排"}</h2>
+            <p>
+              {boss
+                ? `${boss.hp} 点生命，Boss 前进 ${boss.initialDistance} 步会碰到你，共 ${boss.questionIds.length} 题。连续答对会触发额外伤害。`
+                : "该阶段的 Boss 正在编排。"}
+            </p>
             <MasteryMeter label="当前掌握度" value={mastery.score} />
             {ready || outcome?.status === "won" ? (
               <Link
