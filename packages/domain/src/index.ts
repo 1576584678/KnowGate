@@ -11,7 +11,10 @@ export type FractionVisual = {
   kind: "fraction-bar";
   total: number;
   active: number;
+  /** Second bar, shown underneath. Defaults to the same denominator as `total`. */
   compareTo?: number;
+  /** Denominator of the second bar, for comparisons across different fractions. */
+  compareTotal?: number;
   labels?: string[];
 };
 

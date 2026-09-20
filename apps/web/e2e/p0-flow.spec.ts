@@ -425,6 +425,21 @@ test.describe("P0 product flow", () => {
       page.getByRole("heading", { name: firstMilestoneChapters[0].title }),
     ).toBeVisible();
 
+    // The question stem must be rendered alongside its options; previously the
+    // prompt was dropped and learners only saw bare choices.
+    const firstQuestionStep = firstMilestoneChapters[0].steps.find(
+      (step) => step.question,
+    );
+    expect(firstQuestionStep?.question).toBeDefined();
+    const continueButton = page.getByRole("button", { name: "继续" });
+    for (let step = 0; step < 8; step += 1) {
+      if (await page.locator(".lesson-question").isVisible()) break;
+      await continueButton.click();
+    }
+    await expect(page.locator(".lesson-question")).toHaveText(
+      firstQuestionStep!.question!.prompt,
+    );
+
     await page.goto("/admin/content");
     await expect(
       page.getByRole("heading", { name: "课程内容后台" }),

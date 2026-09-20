@@ -267,7 +267,9 @@ export default function ChapterPage() {
                   </span>
                   <div>
                     <strong>{itemPhase.label}</strong>
-                    <span>{item.title}</span>
+                    {item.title && item.title !== itemPhase.label ? (
+                      <span>{item.title}</span>
+                    ) : null}
                   </div>
                 </li>
               );
@@ -277,12 +279,15 @@ export default function ChapterPage() {
 
         <section className="lesson-card" aria-live="polite">
           <span className="eyebrow">{phase.label}</span>
-          <h2>{step.title}</h2>
+          {step.title && step.title !== phase.label ? (
+            <h2>{step.title}</h2>
+          ) : null}
           <p className="lesson-copy">{step.body}</p>
           <FractionVisual visual={step.visual} />
 
           {step.question ? (
             <div className="answer-grid" aria-label="答案选项">
+              <p className="lesson-question">{step.question.prompt}</p>
               {step.question.options.map((option, index) => {
                 let result: "correct" | "wrong" | undefined;
                 if (answered && index === step.question?.answerIndex) {

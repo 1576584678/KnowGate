@@ -190,6 +190,9 @@ function readOptionalVisual(record: Record<string, unknown>) {
     ...(visual.compareTo === undefined
       ? {}
       : { compareTo: readNumber(visual, "compareTo") }),
+    ...(visual.compareTotal === undefined
+      ? {}
+      : { compareTotal: readNumber(visual, "compareTotal") }),
     ...(visual.labels === undefined
       ? {}
       : { labels: readTextArray(visual, "labels") }),

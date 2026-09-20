@@ -1,0 +1,28 @@
+description: KnowGate question-content hard rules
+
+prompts:
+  - "{{ question.prompt }}"
+
+providers:
+  - echo
+
+sharing: false
+
+tests: file://./questions.mjs
+
+defaultTest:
+  options:
+    disableVarExpansion: true
+  assert:
+    - type: javascript
+      value: file://../assertions/structure.mjs
+    - type: javascript
+      value: file://../assertions/steps.mjs
+    - type: javascript
+      value: file://../assertions/options.mjs
+    - type: javascript
+      value: file://../assertions/wording.mjs
+    - type: javascript
+      value: file://../assertions/duplicates.mjs
+    - type: javascript
+      value: file://../assertions/graph.mjs

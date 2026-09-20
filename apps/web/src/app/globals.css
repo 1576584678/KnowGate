@@ -1103,6 +1103,21 @@ main {
   margin: var(--space-6) 0;
 }
 
+.fraction-visual__row {
+  display: grid;
+  gap: 6px;
+}
+
+.fraction-visual__row--compare {
+  opacity: 0.9;
+}
+
+.fraction-visual__label {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
 .fraction-visual__bar {
   display: flex;
   width: 100%;
@@ -1110,11 +1125,6 @@ main {
   border: 3px solid #ffffff;
   border-radius: var(--radius-object);
   box-shadow: 0 6px 0 rgba(15, 23, 42, 0.06);
-}
-
-.fraction-visual__bar--compare {
-  opacity: 0.82;
-  transform: translateY(16px);
 }
 
 .fraction-visual__part {
@@ -1142,6 +1152,12 @@ main {
   display: grid;
   gap: var(--space-3);
   margin-top: var(--space-5);
+}
+
+.lesson-question {
+  max-width: 720px;
+  font-size: var(--text-lg);
+  font-weight: 600;
 }
 
 .answer-option {

@@ -11,7 +11,16 @@
     "build": "npm run build --workspace @knowgate/web",
     "lint": "npm run lint --workspace @knowgate/web",
     "test": "npm run test --workspace @knowgate/domain && npm run test --workspace @knowgate/web",
-    "test:e2e": "npm run test:e2e --workspace @knowgate/web"
+    "test:e2e": "npm run test:e2e --workspace @knowgate/web",
+    "content:export": "node evals/scripts/export-questions.mjs",
+    "content:audit": "npm run content:export && node evals/scripts/run-hard-rules.mjs",
+    "content:audit:promptfoo": "npm run content:export && promptfoo eval -c evals/promptfoo/promptfooconfig.yaml --no-cache --no-progress-bar -o evals/reports/promptfoo.json",
+    "content:audit:ragas": "npm run content:export && node evals/scripts/run-ragas.mjs",
+    "content:audit:all": "node evals/scripts/run-content-audits.mjs",
+    "test:evals": "node --test evals/tests/rules.test.mjs"
+  },
+  "devDependencies": {
+    "promptfoo": "^0.123.1"
   },
   "engines": {
     "node": ">=22.5"

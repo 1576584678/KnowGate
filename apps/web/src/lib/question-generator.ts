@@ -1,10 +1,12 @@
 import type { ContentQuestion, QuestionKind } from "@knowgate/domain";
 
-const VARIANT_KINDS: QuestionKind[] = [
+const VARIANT_KINDS: QuestionKind[] = ["identify", "apply", "transfer"];
+const SUPPORTED_KINDS: QuestionKind[] = [
   "identify",
   "judge",
   "apply",
   "transfer",
+  "decisive",
 ];
 
 function seededRandom(seed: number) {
@@ -25,6 +27,21 @@ function shuffled<Value>(values: Value[], random: () => number) {
   }
 
   return result;
+}
+
+function normalizedPrompt(prompt: string) {
+  return prompt.trim().replace(/\s+/gu, " ").toLowerCase();
+}
+
+function uniqueByPrompt(questions: ContentQuestion[]) {
+  const seen = new Set<string>();
+
+  return questions.filter((question) => {
+    const prompt = normalizedPrompt(question.prompt);
+    if (seen.has(prompt)) return false;
+    seen.add(prompt);
+    return true;
+  });
 }
 
 export function generateQuestionVariant(
@@ -61,28 +78,51 @@ export function generateBossQuestionSet(input: {
 
   const questionCount = Math.max(8, input.questionCount ?? 10);
   const random = seededRandom(input.seed);
-  const sourceQuestions = shuffled(input.sourceQuestions, random);
+  const sourceQuestions = shuffled(uniqueByPrompt(input.sourceQuestions), random);
+  if (sourceQuestions.length < questionCount) {
+    throw new Error(
+      `QUESTION_SOURCE_INSUFFICIENT:${sourceQuestions.length}:${questionCount}`,
+    );
+  }
+  const decisiveSources = sourceQuestions.filter(
+    (question) => question.options.length >= 3,
+  );
+  if (decisiveSources.length === 0) {
+    throw new Error("QUESTION_DECISIVE_SOURCE_REQUIRED");
+  }
+  const decisiveSource = decisiveSources[0];
+  const regularSources = sourceQuestions.filter(
+    (question) => question !== decisiveSource,
+  );
+  if (regularSources.length < questionCount - 1) {
+    throw new Error(
+      `QUESTION_SOURCE_INSUFFICIENT:${sourceQuestions.length}:${questionCount}`,
+    );
+  }
 
   return Array.from({ length: questionCount }, (_, index) => {
-    const source = sourceQuestions[index % sourceQuestions.length];
     const isLast = index === questionCount - 1;
+    const source = isLast ? decisiveSource : regularSources[index];
+    const variant = generateQuestionVariant(source, input.seed + index + 1);
     const kind = isLast
       ? "decisive"
-      : VARIANT_KINDS[index % VARIANT_KINDS.length];
+      : variant.options.length === 2
+        ? "judge"
+        : VARIANT_KINDS[index % VARIANT_KINDS.length];
 
     return {
-      ...generateQuestionVariant(source, input.seed + index + 1),
+      ...variant,
       id: `${input.idPrefix ?? "question.generated"}.${index + 1}`,
       kind,
       damage: isLast ? 3 : index < 2 ? 1 : 2,
-      timeLimitSec: isLast ? 120 : index < 2 ? 5 : 45,
+      timeLimitSec: isLast ? 120 : index < 2 ? 20 : 45,
     } satisfies ContentQuestion;
   });
 }
 
 export function getParameterizedQuestionCapabilities() {
   return {
-    supportedKinds: VARIANT_KINDS,
+    supportedKinds: SUPPORTED_KINDS,
     deterministic: true,
     features: [
       "按固定种子重排选项并保持答案索引正确",
