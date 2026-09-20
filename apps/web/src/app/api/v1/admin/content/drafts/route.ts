@@ -52,7 +52,6 @@ export async function POST(request: Request) {
       kind?: ContentDraftKind;
       title?: string;
       payload?: Record<string, unknown>;
-      authorId?: string;
     };
 
     if (
@@ -76,7 +75,7 @@ export async function POST(request: Request) {
       kind: body.kind,
       title: body.title,
       payload: body.payload,
-      authorId: body.authorId?.trim() || getAdminOperatorId(request),
+      authorId: getAdminOperatorId(request),
     });
 
     return NextResponse.json({ draft }, { status: 201 });

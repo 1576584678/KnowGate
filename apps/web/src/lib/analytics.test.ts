@@ -5,17 +5,25 @@ import { createPersistence, type PersistenceStore } from "./persistence";
 
 const stores: PersistenceStore[] = [];
 
-function event(
-  eventType: LearningEventType,
-  payload: Record<string, unknown> = {},
+function event({
+  eventType,
+  payload = {},
   index = 0,
-): LearningEvent {
+  profileId = "profile.1",
+  entityId = "entity.1",
+}: {
+  eventType: LearningEventType;
+  payload?: Record<string, unknown>;
+  index?: number;
+  profileId?: string;
+  entityId?: string;
+}): LearningEvent {
   return {
-    id: `event.${eventType}.${index}`,
-    profileId: "profile.1",
+    id: `event.${profileId}.${eventType}.${index}`,
+    profileId,
     eventType,
     entityType: "test",
-    entityId: "entity.1",
+    entityId,
     payload,
     occurredAt: `2026-09-20T01:00:${String(index).padStart(2, "0")}.000Z`,
   };
@@ -31,19 +39,40 @@ describe("product analytics", () => {
   it("aggregates funnel, accuracy, duration, and report metrics", () => {
     const persistence = createPersistence(":memory:");
     stores.push(persistence);
+    persistence.completeChapter("profile.1", "chapter.1");
     const events = [
-      event("page_viewed", { path: "/" }, 0),
-      event("chapter_started", {}, 1),
-      event("chapter_answer_submitted", { correct: true }, 2),
-      event("chapter_answer_submitted", { correct: false }, 3),
-      event("chapter_completed", { durationSec: 90 }, 4),
-      event("boss_started", {}, 5),
-      event("boss_answer_resolved", { correct: true }, 6),
-      event("boss_answer_resolved", { correct: true }, 7),
-      event("boss_won", {}, 8),
-      event("remediation_started", {}, 9),
-      event("remediation_completed", {}, 10),
-      event("report_viewed", {}, 11),
+      event({ eventType: "page_viewed", payload: { path: "/" }, index: 0 }),
+      event({ eventType: "chapter_started", index: 1 }),
+      event({
+        eventType: "chapter_answer_submitted",
+        payload: { correct: true },
+        index: 2,
+      }),
+      event({
+        eventType: "chapter_answer_submitted",
+        payload: { correct: false },
+        index: 3,
+      }),
+      event({
+        eventType: "chapter_completed",
+        payload: { passed: true, durationSec: 90 },
+        index: 4,
+      }),
+      event({ eventType: "boss_started", index: 5 }),
+      event({
+        eventType: "boss_answer_resolved",
+        payload: { correct: true },
+        index: 6,
+      }),
+      event({
+        eventType: "boss_answer_resolved",
+        payload: { correct: true },
+        index: 7,
+      }),
+      event({ eventType: "boss_won", index: 8 }),
+      event({ eventType: "remediation_started", index: 9 }),
+      event({ eventType: "remediation_completed", index: 10 }),
+      event({ eventType: "report_viewed", index: 11 }),
     ];
 
     const metrics = buildProductMetrics(events, persistence);
@@ -73,6 +102,90 @@ describe("product analytics", () => {
     expect(metrics.reports.viewed).toBe(1);
   });
 
+  it("excludes failed chapter quizzes from completion metrics", () => {
+    const persistence = createPersistence(":memory:");
+    stores.push(persistence);
+    const events = [
+      event({ eventType: "chapter_started", index: 0 }),
+      event({
+        eventType: "chapter_completed",
+        payload: { passed: false, durationSec: 120 },
+        index: 1,
+      }),
+      event({
+        eventType: "chapter_quiz_failed",
+        payload: { passed: false, durationSec: 120 },
+        index: 2,
+      }),
+    ];
+
+    const metrics = buildProductMetrics(events, persistence);
+
+    expect(metrics.chapters).toMatchObject({
+      started: 1,
+      completed: 0,
+      completionRate: 0,
+      averageDurationSec: 0,
+    });
+    expect(metrics.profiles.withProgress).toBe(0);
+  });
+
+  it("does not count page-view-only profiles as having progress", () => {
+    const persistence = createPersistence(":memory:");
+    stores.push(persistence);
+    persistence.completeChapter("profile.with-progress", "chapter.1");
+    const events = [
+      event({ eventType: "page_viewed", index: 0 }),
+      event({
+        eventType: "page_viewed",
+        index: 1,
+        profileId: "profile.with-progress",
+      }),
+      event({
+        eventType: "page_viewed",
+        index: 2,
+        profileId: "profile.visitor",
+      }),
+    ];
+
+    const metrics = buildProductMetrics(events, persistence);
+
+    expect(metrics.profiles).toEqual({ active: 3, withProgress: 1 });
+  });
+
+  it("handles out-of-order and duplicate completion events", () => {
+    const persistence = createPersistence(":memory:");
+    stores.push(persistence);
+    persistence.completeChapter("profile.1", "chapter.1");
+    const events = [
+      event({
+        eventType: "chapter_completed",
+        payload: { passed: true, durationSec: 75 },
+        index: 4,
+      }),
+      event({ eventType: "chapter_started", index: 0 }),
+      event({
+        eventType: "chapter_completed",
+        payload: { passed: true, durationSec: 75 },
+        index: 3,
+      }),
+      event({
+        eventType: "chapter_quiz_failed",
+        payload: { passed: false, durationSec: 30 },
+        index: 2,
+      }),
+    ];
+
+    const metrics = buildProductMetrics(events, persistence);
+
+    expect(metrics.chapters).toMatchObject({
+      started: 1,
+      completed: 1,
+      completionRate: 100,
+      averageDurationSec: 75,
+    });
+  });
+
   it("returns stable zero values without events", () => {
     const persistence = createPersistence(":memory:");
     stores.push(persistence);
@@ -80,6 +193,7 @@ describe("product analytics", () => {
     const metrics = buildProductMetrics([], persistence);
 
     expect(metrics.profiles.active).toBe(0);
+    expect(metrics.profiles.withProgress).toBe(0);
     expect(metrics.chapters.completionRate).toBe(0);
     expect(metrics.bosses.winRate).toBe(0);
     expect(metrics.remediation.completionRate).toBe(0);

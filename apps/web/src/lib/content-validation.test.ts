@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  bossQuestions,
+  bosses,
+  chapters,
+  gradeWorld,
+  knowledgeNodes,
+  milestones,
+} from "@/content/math-grade4";
+import {
   assertContentGraph,
   type ContentGraph,
   validateContentGraph,
@@ -11,6 +19,23 @@ describe("content graph validation", () => {
 
     expect(issues.filter((issue) => issue.severity === "error")).toEqual([]);
     expect(() => assertContentGraph()).not.toThrow();
+  });
+
+  it("rejects a milestone that points at another milestone's boss", () => {
+    const graph: ContentGraph = {
+      contentVersion: gradeWorld.contentVersion,
+      nodes: knowledgeNodes,
+      chapters,
+      milestones,
+      bosses: bosses.map((boss, index) =>
+        index === 0 ? { ...boss, milestoneId: milestones[1].id } : boss,
+      ),
+      questions: bossQuestions,
+    };
+
+    const codes = validateContentGraph(graph).map((issue) => issue.code);
+
+    expect(codes).toContain("MILESTONE_BOSS_MISMATCH");
   });
 
   it("reports broken references, duplicate stages, and missing quizzes", () => {

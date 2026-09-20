@@ -11,16 +11,23 @@ import {
   getBoss,
   getMilestone,
   gradeWorld,
+  milestones,
 } from "@/content/math-grade4";
 import { recordLearningEvent } from "@/lib/chapter-store";
-import { getPersistence } from "@/lib/persistence";
+import {
+  getPersistence,
+  type PersistenceStore,
+} from "@/lib/persistence";
 
-export function createMilestoneBattle(input: {
-  profileId: string;
-  milestoneId: string;
-  mode: BattleMode;
-  extendedTime?: boolean;
-}) {
+export function createMilestoneBattle(
+  input: {
+    profileId: string;
+    milestoneId: string;
+    mode: BattleMode;
+    extendedTime?: boolean;
+  },
+  persistence: PersistenceStore = getPersistence(),
+) {
   const milestone = getMilestone(input.milestoneId);
   if (!milestone) {
     throw new Error("MILESTONE_NOT_FOUND");
@@ -33,7 +40,7 @@ export function createMilestoneBattle(input: {
   const milestoneChapters = chapters.filter((chapter) =>
     milestone.chapterIds.includes(chapter.id),
   );
-  const progress = getPersistence().getProgress(input.profileId);
+  const progress = persistence.getProgress(input.profileId);
   const ready =
     milestoneChapters.length > 0 &&
     milestoneChapters.every((chapter) =>
@@ -42,6 +49,17 @@ export function createMilestoneBattle(input: {
 
   if (!ready) {
     throw new Error("MILESTONE_LOCKED");
+  }
+
+  const previousMilestone = [...milestones]
+    .sort((left, right) => left.stageNo - right.stageNo)
+    .filter((item) => item.stageNo < milestone.stageNo)
+    .at(-1);
+  if (
+    previousMilestone &&
+    progress.battleOutcomes[previousMilestone.id]?.status !== "won"
+  ) {
+    throw new Error("PREVIOUS_MILESTONE_LOCKED");
   }
 
   const boss = getBoss(milestone.bossId);
@@ -70,7 +88,6 @@ export function createMilestoneBattle(input: {
     questions: battleQuestions,
   });
 
-  const persistence = getPersistence();
   persistence.saveBattleSession(input.profileId, session);
   recordLearningEvent(
     {

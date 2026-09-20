@@ -12,14 +12,15 @@ import {
 
 const playerId = "e2e.p0.player";
 const uiPlayerId = "e2e.p0.browser";
+const integrityPlayerId = "e2e.p0.integrity";
 const adminHeaders = {
   "x-knowgate-admin-token": "local-admin",
   "x-knowgate-operator-id": "e2e-admin",
 };
 
-function playerHeaders(json = false) {
+function playerHeaders(json = false, profileId = playerId) {
   return {
-    "x-knowgate-profile-id": playerId,
+    "x-knowgate-profile-id": profileId,
     ...(json ? { "Content-Type": "application/json" } : {}),
   };
 }
@@ -194,6 +195,7 @@ test.describe("P0 product flow", () => {
     ).toBe(true);
 
     const title = `E2E review draft ${Date.now()}`;
+    const sourceChapter = chapters[0];
     const createResponse = await request.post(
       "/api/v1/admin/content/drafts",
       {
@@ -201,8 +203,11 @@ test.describe("P0 product flow", () => {
         data: {
           kind: "chapter",
           title,
-          payload: { title, source: "e2e" },
-          authorId: "e2e-admin",
+          payload: {
+            ...sourceChapter,
+            id: `chapter.e2e.${Date.now()}`,
+            title,
+          },
         },
       },
     );
@@ -224,7 +229,6 @@ test.describe("P0 product flow", () => {
           data: {
             action,
             note: `e2e ${action}`,
-            operatorId: "e2e-admin",
           },
         },
       );
@@ -234,6 +238,79 @@ test.describe("P0 product flow", () => {
       };
       expect(reviewed.draft.status).toBe(expectedStatus);
     }
+
+    const publicationsResponse = await request.get(
+      "/api/v1/admin/content/publications",
+      { headers: adminHeaders },
+    );
+    expect(publicationsResponse.ok()).toBe(true);
+    const publications = (await publicationsResponse.json()) as {
+      publications: Array<{ draftId: string; kind: string }>;
+    };
+    expect(
+      publications.publications.some(
+        (publication) =>
+          publication.draftId === created.draft.id &&
+          publication.kind === "chapter",
+      ),
+    ).toBe(true);
+  });
+
+  test("rejects forged progress and out-of-order battles", async ({
+    request,
+  }) => {
+    await resetPlayer(request, integrityPlayerId);
+
+    const forged = await request.post("/api/v1/progress", {
+      headers: playerHeaders(true, integrityPlayerId),
+      data: {
+        type: "chapter_completed",
+        chapterId: chapters[0].id,
+      },
+    });
+    expect(forged.status()).toBe(405);
+
+    const secondMilestone = milestones[1];
+    const secondMilestoneChapters = chapters.filter((chapter) =>
+      secondMilestone.chapterIds.includes(chapter.id),
+    );
+    for (const chapter of secondMilestoneChapters) {
+      const answers = chapter.steps.flatMap((step) =>
+        step.question
+          ? [
+              {
+                itemId: step.question.id,
+                answer: answerKey(step.question.answerIndex),
+              },
+            ]
+          : [],
+      );
+      const response = await request.post(
+        `/api/v1/chapters/${chapter.id}/complete`,
+        {
+          headers: playerHeaders(true, integrityPlayerId),
+          data: {
+            answers,
+            durationSec: chapter.estimatedMinutes * 60,
+            contentVersion: gradeWorld.contentVersion,
+          },
+        },
+      );
+      expect(response.status(), await response.text()).toBe(200);
+    }
+
+    const battleResponse = await request.post("/api/v1/battles", {
+      headers: playerHeaders(true, integrityPlayerId),
+      data: {
+        milestoneId: secondMilestone.id,
+        mode: "learning",
+      },
+    });
+    expect(battleResponse.status()).toBe(403);
+    const battleError = (await battleResponse.json()) as {
+      error: { code: string };
+    };
+    expect(battleError.error.code).toBe("PREVIOUS_MILESTONE_LOCKED");
   });
 
   test("renders the ten-stage map, a chapter, and the content console", async ({

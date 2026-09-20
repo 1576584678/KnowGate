@@ -68,11 +68,31 @@ type ContentReviewRow = {
   occurred_at: string;
 };
 
+type PublishedContentRow = {
+  id: string;
+  draft_id: string;
+  kind: ContentDraftKind;
+  entity_id: string;
+  content_version: string;
+  payload_json: string;
+  published_at: string;
+};
+
 export type ChapterCompletionRecord = {
   chapterId: string;
   score: number;
   durationSec: number;
   completedAt: string;
+};
+
+export type PublishedContentRecord = {
+  id: string;
+  draftId: string;
+  kind: ContentDraftKind;
+  entityId: string;
+  contentVersion: string;
+  payload: Record<string, unknown>;
+  publishedAt: string;
 };
 
 export type PersistenceStore = ReturnType<typeof createPersistence>;
@@ -195,6 +215,19 @@ export function createPersistence(databasePath = defaultDatabasePath()) {
 
     CREATE INDEX IF NOT EXISTS content_reviews_draft_idx
       ON content_reviews (draft_id, occurred_at);
+
+    CREATE TABLE IF NOT EXISTS published_content (
+      id TEXT PRIMARY KEY,
+      draft_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      entity_id TEXT NOT NULL,
+      content_version TEXT NOT NULL,
+      payload_json TEXT NOT NULL,
+      published_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS published_content_entity_idx
+      ON published_content (kind, entity_id, published_at);
   `);
 
   ensureColumn(database, "chapter_progress", "score", "INTEGER NOT NULL DEFAULT 0");
@@ -637,6 +670,84 @@ export function createPersistence(databasePath = defaultDatabasePath()) {
         operatorId: row.operator_id,
         note: row.note ?? undefined,
         occurredAt: row.occurred_at,
+      }));
+    },
+
+    recordPublication(record: PublishedContentRecord) {
+      database
+        .prepare(
+          `
+            INSERT INTO published_content (
+              id,
+              draft_id,
+              kind,
+              entity_id,
+              content_version,
+              payload_json,
+              published_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+          `,
+        )
+        .run(
+          record.id,
+          record.draftId,
+          record.kind,
+          record.entityId,
+          record.contentVersion,
+          JSON.stringify(record.payload),
+          record.publishedAt,
+        );
+    },
+
+    getPublishedContent(
+      kind?: ContentDraftKind,
+    ): PublishedContentRecord[] {
+      const rows = (
+        kind
+          ? database
+              .prepare(
+                `
+                  SELECT
+                    id,
+                    draft_id,
+                    kind,
+                    entity_id,
+                    content_version,
+                    payload_json,
+                    published_at
+                  FROM published_content
+                  WHERE kind = ?
+                  ORDER BY published_at ASC, id ASC
+                `,
+              )
+              .all(kind)
+          : database
+              .prepare(
+                `
+                  SELECT
+                    id,
+                    draft_id,
+                    kind,
+                    entity_id,
+                    content_version,
+                    payload_json,
+                    published_at
+                  FROM published_content
+                  ORDER BY published_at ASC, id ASC
+                `,
+              )
+              .all()
+      ) as PublishedContentRow[];
+
+      return rows.map((row) => ({
+        id: row.id,
+        draftId: row.draft_id,
+        kind: row.kind,
+        entityId: row.entity_id,
+        contentVersion: row.content_version,
+        payload: parseJson<Record<string, unknown>>(row.payload_json, {}),
+        publishedAt: row.published_at,
       }));
     },
 

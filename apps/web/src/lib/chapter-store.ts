@@ -138,7 +138,7 @@ export function completeChapter(
   persistence.recordEvent(
     createEvent({
       profileId: input.profileId,
-      eventType: "chapter_completed",
+      eventType: passed ? "chapter_completed" : "chapter_quiz_failed",
       entityType: "chapter",
       entityId: input.chapterId,
       payload: {

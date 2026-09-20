@@ -16,6 +16,15 @@ import type {
 } from "@knowgate/domain";
 import { profileHeaders } from "@/lib/profile";
 
+export type ChapterCompletionOutcome =
+  | {
+      status: "recorded";
+      result: ChapterCompletionResult;
+      progress: ProgressSnapshot;
+    }
+  | { status: "rejected"; code: string; message: string }
+  | { status: "offline" };
+
 type ProgressContextValue = ProgressSnapshot & {
   ready: boolean;
   completeChapter: (input: {
@@ -23,7 +32,7 @@ type ProgressContextValue = ProgressSnapshot & {
     answers: ChapterCompletionAnswer[];
     durationSec: number;
     contentVersion: string;
-  }) => Promise<ChapterCompletionResult | null>;
+  }) => Promise<ChapterCompletionOutcome>;
   recordBattle: (outcome: BattleOutcome) => void;
   resetProgress: () => void;
 };
@@ -62,43 +71,13 @@ function readLocalProgress(): ProgressSnapshot {
   }
 }
 
-function mergeProgress(
-  server: ProgressSnapshot,
-  local: ProgressSnapshot,
-): ProgressSnapshot {
-  const passedChapterIds = Array.from(
-    new Set([...server.passedChapterIds, ...local.passedChapterIds]),
-  );
-  const battleOutcomes = { ...server.battleOutcomes };
-
-  for (const [milestoneId, localOutcome] of Object.entries(
-    local.battleOutcomes,
-  )) {
-    const serverOutcome = battleOutcomes[milestoneId];
-    if (
-      !serverOutcome ||
-      Date.parse(localOutcome.completedAt) >
-        Date.parse(serverOutcome.completedAt)
-    ) {
-      battleOutcomes[milestoneId] = localOutcome;
-    }
-  }
-
-  return { passedChapterIds, battleOutcomes };
-}
-
-async function requestProgress(
-  method: "POST" | "DELETE",
-  body?: unknown,
+async function requestServerProgress(
+  method: "GET" | "DELETE",
 ): Promise<ProgressSnapshot | null> {
   try {
     const response = await fetch("/api/v1/progress", {
       method,
-      headers:
-        body === undefined
-          ? profileHeaders()
-          : profileHeaders({ "Content-Type": "application/json" }),
-      body: body === undefined ? undefined : JSON.stringify(body),
+      headers: profileHeaders(),
     });
     if (!response.ok) return null;
     const payload = (await response.json()) as { progress?: unknown };
@@ -108,50 +87,16 @@ async function requestProgress(
   }
 }
 
-async function migrateLocalProgress(
-  serverProgress: ProgressSnapshot,
-  localProgress: ProgressSnapshot,
-) {
-  const serverChapters = new Set(serverProgress.passedChapterIds);
-  const chapterUpdates = localProgress.passedChapterIds
-    .filter((chapterId) => !serverChapters.has(chapterId))
-    .map((chapterId) =>
-      requestProgress("POST", {
-        type: "chapter_completed",
-        chapterId,
-      }),
-    );
-
-  const outcomeUpdates = Object.entries(localProgress.battleOutcomes)
-    .filter(([milestoneId, localOutcome]) => {
-      const serverOutcome = serverProgress.battleOutcomes[milestoneId];
-      return (
-        !serverOutcome ||
-        Date.parse(localOutcome.completedAt) >
-          Date.parse(serverOutcome.completedAt)
-      );
-    })
-    .map(([, outcome]) =>
-      requestProgress("POST", {
-        type: "battle_recorded",
-        outcome,
-      }),
-    );
-
-  await Promise.allSettled([...chapterUpdates, ...outcomeUpdates]);
-}
-
 async function requestChapterCompletion(input: {
   chapterId: string;
   answers: ChapterCompletionAnswer[];
   durationSec: number;
   contentVersion: string;
-}): Promise<{
-  result: ChapterCompletionResult;
-  progress: ProgressSnapshot;
-} | null> {
+}): Promise<ChapterCompletionOutcome> {
+  let response: Response;
+
   try {
-    const response = await fetch(
+    response = await fetch(
       `/api/v1/chapters/${encodeURIComponent(input.chapterId)}/complete`,
       {
         method: "POST",
@@ -163,20 +108,55 @@ async function requestChapterCompletion(input: {
         }),
       },
     );
-    if (!response.ok) return null;
+  } catch {
+    return { status: "offline" };
+  }
 
+  if (!response.ok) {
+    let code = "CHAPTER_COMPLETION_REJECTED";
+    let message = "服务器没有保存这次章节完成，请稍后重试。";
+
+    try {
+      const errorPayload = (await response.json()) as {
+        error?: { code?: unknown; message?: unknown };
+      };
+      if (typeof errorPayload.error?.code === "string") {
+        code = errorPayload.error.code;
+      }
+      if (typeof errorPayload.error?.message === "string") {
+        message = errorPayload.error.message;
+      }
+    } catch {
+      // Keep the generic rejection message when the body is not JSON.
+    }
+
+    return { status: "rejected", code, message };
+  }
+
+  try {
     const payload = (await response.json()) as {
       result?: ChapterCompletionResult;
       progress?: unknown;
     };
-    if (!payload.result) return null;
+    if (!payload.result) {
+      return {
+        status: "rejected",
+        code: "INVALID_COMPLETION_RESPONSE",
+        message: "服务器返回的判题结果不完整。",
+      };
+    }
 
     return {
+      status: "recorded",
       result: payload.result,
       progress: normalizeProgress(payload.progress),
     };
   } catch {
-    return null;
+    return {
+      status: "rejected",
+      code: "INVALID_COMPLETION_RESPONSE",
+      message: "服务器返回的判题结果无法解析。",
+    };
   }
 }
 
@@ -192,19 +172,11 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     async function hydrateFromServer() {
-      try {
-        const response = await fetch("/api/v1/progress", {
-          headers: profileHeaders(),
-        });
-        if (!response.ok) return;
-        const payload = (await response.json()) as { progress?: unknown };
-        const serverProgress = normalizeProgress(payload.progress);
-        const merged = mergeProgress(serverProgress, localProgress);
-
-        if (!cancelled) setProgress(merged);
-        await migrateLocalProgress(serverProgress, localProgress);
-      } catch {
-        // Local progress remains available when the API is offline.
+      const serverProgress = await requestServerProgress("GET");
+      if (!cancelled && serverProgress) {
+        // The server is the source of truth. Once it answers, stale local
+        // progress from older clients is replaced instead of merged forward.
+        setProgress(serverProgress);
       }
     }
 
@@ -224,28 +196,11 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       ...progress,
       ready,
       async completeChapter(input) {
-        const response = await requestChapterCompletion(input);
-
-        if (response?.result.passed) {
-          setProgress(response.progress);
-          return response.result;
+        const outcome = await requestChapterCompletion(input);
+        if (outcome.status === "recorded") {
+          setProgress(outcome.progress);
         }
-
-        if (response) {
-          return response.result;
-        }
-
-        setProgress((current) => ({
-          ...current,
-          passedChapterIds: current.passedChapterIds.includes(input.chapterId)
-            ? current.passedChapterIds
-            : [...current.passedChapterIds, input.chapterId],
-        }));
-        void requestProgress("POST", {
-          type: "chapter_completed",
-          chapterId: input.chapterId,
-        });
-        return null;
+        return outcome;
       },
       recordBattle(outcome) {
         setProgress((current) => ({
@@ -255,14 +210,13 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
             [outcome.milestoneId]: outcome,
           },
         }));
-        void requestProgress("POST", {
-          type: "battle_recorded",
-          outcome,
+        void requestServerProgress("GET").then((serverProgress) => {
+          if (serverProgress) setProgress(serverProgress);
         });
       },
       resetProgress() {
         setProgress(emptyProgress);
-        void requestProgress("DELETE");
+        void requestServerProgress("DELETE");
       },
     }),
     [progress, ready],

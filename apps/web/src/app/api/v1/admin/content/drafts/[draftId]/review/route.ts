@@ -30,7 +30,6 @@ export async function POST(
     const body = (await request.json()) as {
       action?: ContentReviewAction;
       note?: string;
-      operatorId?: string;
     };
 
     if (!body.action || !reviewActions.includes(body.action)) {
@@ -49,24 +48,29 @@ export async function POST(
       draftId,
       action: body.action,
       note: body.note,
-      operatorId: body.operatorId?.trim() || getAdminOperatorId(request),
+      operatorId: getAdminOperatorId(request),
     });
 
     return NextResponse.json({ draft });
   } catch (error) {
     const code = error instanceof Error ? error.message : "UNKNOWN_ERROR";
-    const status =
-      code === "DRAFT_NOT_FOUND"
-        ? 404
-        : code === "CONTENT_GRAPH_INVALID"
-          ? 422
-          : 409;
-    const message =
-      code === "CONTENT_GRAPH_INVALID"
-        ? "课程图谱仍有错误，不能发布。"
-        : code === "INVALID_REVIEW_TRANSITION"
-          ? "当前状态不能执行这个审核动作。"
-          : "无法更新审核状态。";
+    const isGraphError = code.startsWith("CONTENT_GRAPH_INVALID");
+    const isPayloadError = code.startsWith("INVALID_DRAFT_PAYLOAD");
+
+    let status = 409;
+    let message = "无法更新审核状态。";
+
+    if (code === "DRAFT_NOT_FOUND") {
+      status = 404;
+    } else if (isGraphError) {
+      status = 422;
+      message = "草稿内容会使课程图谱失效，不能发布。";
+    } else if (isPayloadError) {
+      status = 400;
+      message = "草稿内容格式不正确，不能发布。";
+    } else if (code === "INVALID_REVIEW_TRANSITION") {
+      message = "当前状态不能执行这个审核动作。";
+    }
 
     return NextResponse.json({ error: { code, message } }, { status });
   }

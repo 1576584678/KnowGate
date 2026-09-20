@@ -177,7 +177,6 @@ export default function AdminContentPage() {
           kind,
           title,
           payload,
-          authorId: operatorId,
         }),
       });
       await readPayload(response);
@@ -212,7 +211,6 @@ export default function AdminContentPage() {
           body: JSON.stringify({
             action,
             note: notes[draftId] || undefined,
-            operatorId,
           }),
         },
       );

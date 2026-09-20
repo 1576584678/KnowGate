@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
+import type { Chapter } from "@knowgate/domain";
+import { chapters } from "@/content/math-grade4";
 import {
   createContentDraft,
   listContentDrafts,
@@ -15,6 +17,14 @@ function createStore() {
   return store;
 }
 
+function draftChapter(): Chapter {
+  return {
+    ...chapters[0],
+    id: "chapter.draft.test",
+    title: "New chapter",
+  };
+}
+
 afterEach(() => {
   for (const store of stores.splice(0)) {
     store.close();
@@ -22,13 +32,13 @@ afterEach(() => {
 });
 
 describe("content review workflow", () => {
-  it("runs draft through review, approval, and publication", () => {
+  it("validates and persists the draft payload on publication", () => {
     const persistence = createStore();
     const draft = createContentDraft(
       {
         kind: "chapter",
         title: "New chapter",
-        payload: { title: "New chapter" },
+        payload: draftChapter() as unknown as Record<string, unknown>,
         authorId: "author.1",
       },
       persistence,
@@ -65,12 +75,83 @@ describe("content review workflow", () => {
     );
 
     expect(published.status).toBe("published");
+    expect(published.reviewerId).toBe("publisher.1");
     expect(published.reviews.map((review) => review.action)).toEqual([
       "submitted",
       "approved",
       "published",
     ]);
     expect(listContentDrafts("published", persistence)).toHaveLength(1);
+
+    const publications = persistence.getPublishedContent();
+    expect(publications).toHaveLength(1);
+    expect(publications[0]).toMatchObject({
+      draftId: draft.id,
+      kind: "chapter",
+      entityId: "chapter.draft.test",
+    });
+  });
+
+  it("rejects publishing a malformed draft payload", () => {
+    const persistence = createStore();
+    const draft = createContentDraft(
+      {
+        kind: "chapter",
+        title: "Broken chapter",
+        payload: { title: "Broken chapter" },
+        authorId: "author.1",
+      },
+      persistence,
+    );
+    reviewContentDraft(
+      { draftId: draft.id, action: "submit", operatorId: "author.1" },
+      persistence,
+    );
+    reviewContentDraft(
+      { draftId: draft.id, action: "approve", operatorId: "reviewer.1" },
+      persistence,
+    );
+
+    expect(() =>
+      reviewContentDraft(
+        { draftId: draft.id, action: "publish", operatorId: "publisher.1" },
+        persistence,
+      ),
+    ).toThrow(/INVALID_DRAFT_PAYLOAD/);
+    expect(persistence.getPublishedContent()).toHaveLength(0);
+  });
+
+  it("rejects publishing a payload that breaks the content graph", () => {
+    const persistence = createStore();
+    const chapter = {
+      ...draftChapter(),
+      milestoneId: "milestone.missing",
+    };
+    const draft = createContentDraft(
+      {
+        kind: "chapter",
+        title: "Orphan chapter",
+        payload: chapter as unknown as Record<string, unknown>,
+        authorId: "author.1",
+      },
+      persistence,
+    );
+    reviewContentDraft(
+      { draftId: draft.id, action: "submit", operatorId: "author.1" },
+      persistence,
+    );
+    reviewContentDraft(
+      { draftId: draft.id, action: "approve", operatorId: "reviewer.1" },
+      persistence,
+    );
+
+    expect(() =>
+      reviewContentDraft(
+        { draftId: draft.id, action: "publish", operatorId: "publisher.1" },
+        persistence,
+      ),
+    ).toThrow(/CONTENT_GRAPH_INVALID/);
+    expect(persistence.getPublishedContent()).toHaveLength(0);
   });
 
   it("allows author edits only while a draft is editable", () => {

@@ -41,13 +41,15 @@ export async function POST(request: Request) {
     const status =
       code === "MILESTONE_NOT_FOUND"
         ? 404
-        : code === "MILESTONE_LOCKED"
+        : code === "MILESTONE_LOCKED" || code === "PREVIOUS_MILESTONE_LOCKED"
           ? 403
           : 409;
     const message =
       code === "MILESTONE_LOCKED"
         ? "先完成本小关的全部学习章节。"
-        : "无法创建这场挑战。";
+        : code === "PREVIOUS_MILESTONE_LOCKED"
+          ? "先击败上一关的 Boss 才能继续。"
+          : "无法创建这场挑战。";
     return NextResponse.json(
       { error: { code, message } },
       { status },

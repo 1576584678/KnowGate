@@ -166,6 +166,7 @@ export const learningEventTypes = [
   "chapter_step_viewed",
   "chapter_answer_submitted",
   "chapter_completed",
+  "chapter_quiz_failed",
   "chapter_migrated",
   "practice_answered",
   "boss_started",

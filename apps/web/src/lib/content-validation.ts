@@ -355,6 +355,19 @@ export function validateContentGraph(
         message: `里程碑引用的 Boss 不存在：${milestone.bossId}`,
       });
     }
+
+    const milestoneBoss = graph.bosses.find(
+      (boss) => boss.id === milestone.bossId,
+    );
+    if (milestoneBoss && milestoneBoss.milestoneId !== milestone.id) {
+      issues.push({
+        severity: "error",
+        code: "MILESTONE_BOSS_MISMATCH",
+        entityType: "milestone",
+        entityId: milestone.id,
+        message: `Boss ${milestone.bossId} 归属于其他里程碑。`,
+      });
+    }
   }
 
   for (let stageNo = 1; stageNo <= graph.milestones.length; stageNo += 1) {

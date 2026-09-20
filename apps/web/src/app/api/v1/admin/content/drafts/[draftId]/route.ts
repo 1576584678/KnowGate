@@ -44,7 +44,6 @@ export async function PATCH(
     const body = (await request.json()) as {
       title?: string;
       payload?: Record<string, unknown>;
-      operatorId?: string;
     };
     const draft = updateContentDraft({
       draftId,
@@ -53,7 +52,7 @@ export async function PATCH(
         body.payload && typeof body.payload === "object"
           ? body.payload
           : undefined,
-      operatorId: body.operatorId?.trim() || getAdminOperatorId(request),
+      operatorId: getAdminOperatorId(request),
     });
 
     return NextResponse.json({ draft });

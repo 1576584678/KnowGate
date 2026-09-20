@@ -26,31 +26,76 @@ function average(values: number[]) {
   ) / 10;
 }
 
+function orderEvents(events: LearningEvent[]) {
+  return [...events].sort(
+    (left, right) =>
+      left.occurredAt.localeCompare(right.occurredAt) ||
+      left.id.localeCompare(right.id),
+  );
+}
+
+function isPassingChapterCompletion(event: LearningEvent) {
+  return (
+    event.eventType === "chapter_completed" &&
+    event.payload.passed === true
+  );
+}
+
+function countProfilesWithProgress(
+  profileIds: Set<string>,
+  persistence: PersistenceStore,
+) {
+  let count = 0;
+
+  for (const profileId of profileIds) {
+    const progress = persistence.getProgress(profileId);
+    if (
+      progress.passedChapterIds.length > 0 ||
+      Object.keys(progress.battleOutcomes).length > 0
+    ) {
+      count += 1;
+    }
+  }
+
+  return count;
+}
+
 export function buildProductMetrics(
   events: LearningEvent[],
   persistence: PersistenceStore = getPersistence(),
 ) {
-  const chapterStarted = events.filter(
+  const orderedEvents = orderEvents(events);
+  const chapterStarted = orderedEvents.filter(
     (event) => event.eventType === "chapter_started",
   );
-  const chapterCompleted = events.filter(
-    (event) => event.eventType === "chapter_completed",
-  );
-  const chapterAnswers = events.filter(
+  const chapterCompletedByChapter = new Map<string, LearningEvent>();
+  for (const event of orderedEvents) {
+    if (!isPassingChapterCompletion(event)) continue;
+    const key = `${event.profileId}:${event.entityId}`;
+    if (!chapterCompletedByChapter.has(key)) {
+      chapterCompletedByChapter.set(key, event);
+    }
+  }
+  const chapterCompleted = [...chapterCompletedByChapter.values()];
+  const chapterAnswers = orderedEvents.filter(
     (event) => event.eventType === "chapter_answer_submitted",
   );
-  const bossStarted = events.filter(
+  const bossStarted = orderedEvents.filter(
     (event) => event.eventType === "boss_started",
   );
-  const bossWon = events.filter((event) => event.eventType === "boss_won");
-  const bossLost = events.filter((event) => event.eventType === "boss_lost");
-  const bossAnswers = events.filter(
+  const bossWon = orderedEvents.filter(
+    (event) => event.eventType === "boss_won",
+  );
+  const bossLost = orderedEvents.filter(
+    (event) => event.eventType === "boss_lost",
+  );
+  const bossAnswers = orderedEvents.filter(
     (event) => event.eventType === "boss_answer_resolved",
   );
-  const remediationStarted = events.filter(
+  const remediationStarted = orderedEvents.filter(
     (event) => event.eventType === "remediation_started",
   );
-  const remediationCompleted = events.filter(
+  const remediationCompleted = orderedEvents.filter(
     (event) => event.eventType === "remediation_completed",
   );
   const chapterDurations = chapterCompleted
@@ -62,27 +107,18 @@ export function buildProductMetrics(
   const bossCorrect = bossAnswers.filter((event) =>
     payloadBoolean(event, "correct"),
   ).length;
-  const activeProfileIds = new Set(events.map((event) => event.profileId));
-  const storedProfileIds = new Set([
-    ...activeProfileIds,
-    ...chapterCompleted.map((event) => event.profileId),
-  ]);
-
-  // Reading progress once also verifies that the analytics endpoint is backed by
-  // the same durable store as learning flow APIs.
-  for (const profileId of storedProfileIds) {
-    persistence.getProgress(profileId);
-  }
+  const activeProfileIds = new Set(orderedEvents.map((event) => event.profileId));
 
   return {
     generatedAt: new Date().toISOString(),
     profiles: {
       active: activeProfileIds.size,
-      withProgress: storedProfileIds.size,
+      withProgress: countProfilesWithProgress(activeProfileIds, persistence),
     },
     acquisition: {
-      pageViews: events.filter((event) => event.eventType === "page_viewed")
-        .length,
+      pageViews: orderedEvents.filter(
+        (event) => event.eventType === "page_viewed",
+      ).length,
     },
     chapters: {
       started: chapterStarted.length,
@@ -109,8 +145,9 @@ export function buildProductMetrics(
       ),
     },
     reports: {
-      viewed: events.filter((event) => event.eventType === "report_viewed")
-        .length,
+      viewed: orderedEvents.filter(
+        (event) => event.eventType === "report_viewed",
+      ).length,
     },
   };
 }

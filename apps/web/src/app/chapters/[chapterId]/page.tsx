@@ -172,7 +172,7 @@ export default function ChapterPage() {
         1,
         Math.round((Date.now() - startedAt.current) / 1000),
       );
-      const result = await completeChapter({
+      const outcome = await completeChapter({
         chapterId: chapter.id,
         answers: chapterAnswers,
         durationSec,
@@ -180,7 +180,19 @@ export default function ChapterPage() {
       });
       setIsCompleting(false);
 
-      if (result && !result.passed) {
+      if (outcome.status === "offline") {
+        setCompletionError(
+          "无法连接服务器，章节进度未保存。请检查网络后重试。",
+        );
+        return;
+      }
+
+      if (outcome.status === "rejected") {
+        setCompletionError(outcome.message);
+        return;
+      }
+
+      if (!outcome.result.passed) {
         setCompletionError("答题记录未通过校验，请再检查一次。");
         setAnswered(false);
         setSelectedIndex(null);
