@@ -6,7 +6,7 @@ import { buildRuntimeContentGraph } from "@/lib/runtime-content";
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const unauthorized = requireAdminRequest(request);
+  const unauthorized = requireAdminRequest(request, "content:read");
   if (unauthorized) return unauthorized;
 
   const issues = validateContentGraph(buildRuntimeContentGraph());

@@ -5,7 +5,7 @@ import { getProductMetrics } from "@/lib/analytics";
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const unauthorized = requireAdminRequest(request);
+  const unauthorized = requireAdminRequest(request, "analytics:read");
   if (unauthorized) return unauthorized;
 
   return NextResponse.json(getProductMetrics());

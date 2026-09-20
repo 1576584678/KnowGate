@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { BattleOutcome } from "@knowgate/domain";
-import { chapters, milestones } from "@/content/math-grade4";
+import { bosses, chapters, milestones } from "@/content/math-grade4";
 import { createMilestoneBattle } from "./battle-store";
 import { completeChapter } from "./chapter-store";
+import { createContentDraft, reviewContentDraft } from "./content-workflow";
 import { createPersistence, type PersistenceStore } from "./persistence";
 
 const stores: PersistenceStore[] = [];
@@ -47,6 +48,32 @@ function completeMilestoneChapters(
       persistence,
     );
   }
+}
+
+function publish(
+  persistence: PersistenceStore,
+  input: {
+    kind: "chapter" | "boss";
+    title: string;
+    payload: Record<string, unknown>;
+  },
+) {
+  const draft = createContentDraft(
+    { ...input, authorId: "author.1" },
+    persistence,
+  );
+  reviewContentDraft(
+    { draftId: draft.id, action: "submit", operatorId: "author.1" },
+    persistence,
+  );
+  reviewContentDraft(
+    { draftId: draft.id, action: "approve", operatorId: "reviewer.1" },
+    persistence,
+  );
+  reviewContentDraft(
+    { draftId: draft.id, action: "publish", operatorId: "publisher.1" },
+    persistence,
+  );
 }
 
 afterEach(() => {
@@ -109,5 +136,72 @@ describe("milestone battle ordering", () => {
     );
 
     expect(session.milestoneId).toBe(firstMilestone.id);
+  });
+
+  it("locks an in-progress battle to the snapshot it started on", () => {
+    const persistence = createStore();
+    const firstMilestone = milestones[0];
+    const sourceChapter = chapters.find(
+      (chapter) => chapter.id === firstMilestone.chapterIds[0],
+    );
+    if (!sourceChapter) throw new Error("Missing first chapter");
+    publish(persistence, {
+      kind: "chapter",
+      title: "Snapshot A chapter",
+      payload: {
+        ...sourceChapter,
+        title: "Snapshot A chapter",
+      },
+    });
+    const snapshotA = persistence.getContentSnapshots("active").at(-1);
+    expect(snapshotA).toBeDefined();
+
+    completeMilestoneChapters(persistence, firstMilestone.id);
+    const sessionA = createMilestoneBattle(
+      {
+        profileId: "profile.test",
+        milestoneId: firstMilestone.id,
+        mode: "learning",
+      },
+      persistence,
+    );
+    expect(sessionA.contentSnapshotId).toBe(snapshotA?.id);
+
+    const sourceBoss = bosses.find(
+      (boss) => boss.id === firstMilestone.bossId,
+    );
+    if (!sourceBoss) throw new Error("Missing first boss");
+    const reversedBoss = {
+      ...sourceBoss,
+      questionIds: [...sourceBoss.questionIds].reverse(),
+    };
+    publish(persistence, {
+      kind: "boss",
+      title: "Snapshot B boss",
+      payload: reversedBoss,
+    });
+    const snapshotB = persistence.getContentSnapshots("active").at(-1);
+    expect(snapshotB?.id).toBeDefined();
+    expect(snapshotB?.id).not.toBe(snapshotA?.id);
+
+    const sessionB = createMilestoneBattle(
+      {
+        profileId: "profile.test",
+        milestoneId: firstMilestone.id,
+        mode: "learning",
+      },
+      persistence,
+    );
+    expect(sessionB.contentSnapshotId).toBe(snapshotB?.id);
+    expect(sessionB.questions.map((question) => question.id)).toEqual(
+      reversedBoss.questionIds,
+    );
+
+    // The older session keeps the question set it was created with.
+    expect(
+      persistence
+        .getBattleSession("profile.test", sessionA.id)
+        ?.questions.map((question) => question.id),
+    ).toEqual(sourceBoss.questionIds);
   });
 });

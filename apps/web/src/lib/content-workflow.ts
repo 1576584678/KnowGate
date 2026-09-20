@@ -6,10 +6,12 @@ import type {
   ContentDraftStatus,
   ContentQuestion,
   ContentReviewRecord,
+  ContentSourceType,
   KnowledgeNode,
   LessonPhase,
   LessonStep,
   Milestone,
+  QuestionDifficulty,
   QuestionKind,
 } from "@knowgate/domain";
 import { gradeWorld } from "@/content/math-grade4";
@@ -17,6 +19,7 @@ import {
   validateContentGraph,
   type ContentGraph,
 } from "@/lib/content-validation";
+import { hashContentGraph } from "@/lib/content-hashing";
 import {
   getPersistence,
   type PersistenceStore,
@@ -37,6 +40,19 @@ const QUESTION_KINDS: QuestionKind[] = [
   "apply",
   "transfer",
   "decisive",
+];
+
+const QUESTION_DIFFICULTIES: QuestionDifficulty[] = [
+  "foundation",
+  "standard",
+  "challenge",
+];
+
+const CONTENT_SOURCE_TYPES: ContentSourceType[] = [
+  "original",
+  "public_domain",
+  "cc",
+  "licensed",
 ];
 
 const LESSON_PHASES: LessonPhase[] = [
@@ -137,6 +153,30 @@ function readRecordArray(record: Record<string, unknown>, field: string) {
   return value.map((item) => asRecord(item, field));
 }
 
+function readOptionalText(record: Record<string, unknown>, field: string) {
+  const value = record[field];
+  if (value === undefined) return undefined;
+  if (typeof value !== "string" || !value.trim()) {
+    throw new Error(`INVALID_DRAFT_PAYLOAD:${field}`);
+  }
+  return value;
+}
+
+function readOptionalTextArray(
+  record: Record<string, unknown>,
+  field: string,
+) {
+  const value = record[field];
+  if (value === undefined) return undefined;
+  if (
+    !Array.isArray(value) ||
+    !value.every((item) => typeof item === "string" && item.trim())
+  ) {
+    throw new Error(`INVALID_DRAFT_PAYLOAD:${field}`);
+  }
+  return value as string[];
+}
+
 function readOptionalVisual(record: Record<string, unknown>) {
   if (record.visual === undefined) return undefined;
   const visual = asRecord(record.visual, "visual");
@@ -162,17 +202,41 @@ function parseQuestion(value: unknown): ContentQuestion {
   if (!QUESTION_KINDS.includes(kind as QuestionKind)) {
     throw new Error("INVALID_DRAFT_PAYLOAD:question.kind");
   }
+  const difficulty = readOptionalText(record, "difficulty");
+  if (
+    difficulty &&
+    !QUESTION_DIFFICULTIES.includes(difficulty as QuestionDifficulty)
+  ) {
+    throw new Error("INVALID_DRAFT_PAYLOAD:question.difficulty");
+  }
+  const sourceType = readOptionalText(record, "sourceType");
+  if (
+    sourceType &&
+    !CONTENT_SOURCE_TYPES.includes(sourceType as ContentSourceType)
+  ) {
+    throw new Error("INVALID_DRAFT_PAYLOAD:question.sourceType");
+  }
+  const errorTags = readOptionalTextArray(record, "errorTags");
+  const license = readOptionalText(record, "license");
+  const authorId = readOptionalText(record, "authorId");
 
   return {
     id: readText(record, "id"),
     nodeId: readText(record, "nodeId"),
     kind: kind as QuestionKind,
+    ...(difficulty
+      ? { difficulty: difficulty as QuestionDifficulty }
+      : {}),
     prompt: readText(record, "prompt"),
     options: readTextArray(record, "options"),
     answerIndex: readNumber(record, "answerIndex"),
     explanation: readText(record, "explanation", { allowEmpty: true }),
     timeLimitSec: readNumber(record, "timeLimitSec"),
     damage: readNumber(record, "damage"),
+    ...(errorTags ? { errorTags } : {}),
+    ...(sourceType ? { sourceType: sourceType as ContentSourceType } : {}),
+    ...(license ? { license } : {}),
+    ...(authorId ? { authorId } : {}),
     visual: readOptionalVisual(record),
   };
 }
@@ -498,6 +562,7 @@ export function reviewContentDraft(
     action: ContentReviewAction;
     operatorId: string;
     note?: string;
+    rolloutPercent?: number;
   },
   persistence: PersistenceStore = getPersistence(),
 ) {
@@ -508,6 +573,30 @@ export function reviewContentDraft(
   if (input.action === "publish") {
     const publication = buildDraftPublication(draft, persistence);
     assertPublishable(publication);
+    const now = new Date().toISOString();
+    const snapshotId = crypto.randomUUID();
+    const hashes = hashContentGraph(publication.graph);
+    const previousSnapshot = persistence
+      .getContentSnapshots("active")
+      .at(-1);
+    const rolloutPercent =
+      input.rolloutPercent === undefined
+        ? 100
+        : Math.max(1, Math.min(100, Math.round(input.rolloutPercent)));
+
+    persistence.recordContentSnapshot({
+      id: snapshotId,
+      draftId: draft.id,
+      contentVersion: publication.contentVersion,
+      ...hashes,
+      graph: publication.graph as unknown as Record<string, unknown>,
+      status: "active",
+      rolloutPercent,
+      createdBy: input.operatorId,
+      createdAt: now,
+      activatedAt: now,
+      previousSnapshotId: previousSnapshot?.id,
+    });
     persistence.recordPublication({
       id: crypto.randomUUID(),
       draftId: draft.id,
@@ -515,7 +604,15 @@ export function reviewContentDraft(
       entityId: publication.entityId,
       contentVersion: publication.contentVersion,
       payload: publication.payload,
-      publishedAt: new Date().toISOString(),
+      publishedAt: now,
+    });
+    persistence.recordPublicationAudit({
+      id: crypto.randomUUID(),
+      snapshotId,
+      action: "published",
+      operatorId: input.operatorId,
+      note: input.note,
+      occurredAt: now,
     });
   }
 
@@ -559,4 +656,55 @@ export function reviewContentDraft(
     ...next,
     reviews: persistence.getContentReviews(draft.id),
   };
+}
+
+export function activateContentSnapshot(
+  input: {
+    snapshotId: string;
+    operatorId: string;
+    rolloutPercent?: number;
+    note?: string;
+    action?: "activated" | "rollback";
+  },
+  persistence: PersistenceStore = getPersistence(),
+) {
+  const snapshot = persistence.activateContentSnapshot(
+    input.snapshotId,
+    input.rolloutPercent ?? 100,
+  );
+  if (!snapshot) throw new Error("CONTENT_SNAPSHOT_NOT_FOUND");
+
+  persistence.recordPublicationAudit({
+    id: crypto.randomUUID(),
+    snapshotId: snapshot.id,
+    action: input.action ?? "activated",
+    operatorId: input.operatorId,
+    note: input.note,
+    occurredAt: new Date().toISOString(),
+  });
+
+  return snapshot;
+}
+
+export function retireContentSnapshot(
+  input: {
+    snapshotId: string;
+    operatorId: string;
+    note?: string;
+  },
+  persistence: PersistenceStore = getPersistence(),
+) {
+  const snapshot = persistence.retireContentSnapshot(input.snapshotId);
+  if (!snapshot) throw new Error("CONTENT_SNAPSHOT_NOT_FOUND");
+
+  persistence.recordPublicationAudit({
+    id: crypto.randomUUID(),
+    snapshotId: snapshot.id,
+    action: "retired",
+    operatorId: input.operatorId,
+    note: input.note,
+    occurredAt: new Date().toISOString(),
+  });
+
+  return snapshot;
 }

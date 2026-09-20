@@ -14,7 +14,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ draftId: string }> },
 ) {
-  const unauthorized = requireAdminRequest(request);
+  const unauthorized = requireAdminRequest(request, "content:read");
   if (unauthorized) return unauthorized;
 
   const { draftId } = await params;
@@ -35,7 +35,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ draftId: string }> },
 ) {
-  const unauthorized = requireAdminRequest(request);
+  const unauthorized = requireAdminRequest(request, "content:write");
   if (unauthorized) return unauthorized;
 
   const { draftId } = await params;

@@ -10,7 +10,7 @@ import {
   getPersistence,
   type PersistenceStore,
 } from "@/lib/persistence";
-import { buildRuntimeContentGraph } from "@/lib/runtime-content";
+import { resolveRuntimeContent } from "@/lib/runtime-content";
 
 export function createMilestoneBattle(
   input: {
@@ -21,7 +21,10 @@ export function createMilestoneBattle(
   },
   persistence: PersistenceStore = getPersistence(),
 ) {
-  const graph = buildRuntimeContentGraph(persistence);
+  const runtime = resolveRuntimeContent(persistence, {
+    profileId: input.profileId,
+  });
+  const graph = runtime.graph;
   const milestone = graph.milestones.find(
     (item) => item.id === input.milestoneId,
   );
@@ -79,6 +82,7 @@ export function createMilestoneBattle(
     id: crypto.randomUUID(),
     milestoneId: milestone.id,
     contentVersion: graph.contentVersion,
+    contentSnapshotId: runtime.snapshotId,
     boss,
     mode: input.mode,
     questions: battleQuestions,

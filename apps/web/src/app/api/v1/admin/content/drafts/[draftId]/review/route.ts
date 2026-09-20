@@ -21,15 +21,13 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ draftId: string }> },
 ) {
-  const unauthorized = requireAdminRequest(request);
-  if (unauthorized) return unauthorized;
-
   const { draftId } = await params;
 
   try {
     const body = (await request.json()) as {
       action?: ContentReviewAction;
       note?: string;
+      rolloutPercent?: number;
     };
 
     if (!body.action || !reviewActions.includes(body.action)) {
@@ -44,11 +42,21 @@ export async function POST(
       );
     }
 
+    const requiredPermission =
+      body.action === "submit"
+        ? "content:write"
+        : body.action === "publish"
+          ? "content:publish"
+          : "content:review";
+    const unauthorized = requireAdminRequest(request, requiredPermission);
+    if (unauthorized) return unauthorized;
+
     const draft = reviewContentDraft({
       draftId,
       action: body.action,
       note: body.note,
       operatorId: getAdminOperatorId(request),
+      rolloutPercent: body.rolloutPercent,
     });
 
     return NextResponse.json({ draft });

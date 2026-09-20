@@ -3,7 +3,12 @@ import type { Chapter, ContentQuestion } from "@knowgate/domain";
 import { chapters } from "@/content/math-grade4";
 import { completeChapter } from "./chapter-store";
 import { createPersistence, type PersistenceStore } from "./persistence";
-import { buildRuntimeContentGraph, getRuntimeChapter } from "./runtime-content";
+import {
+  buildRuntimeContentGraph,
+  contentRolloutBucket,
+  getRuntimeChapter,
+  resolveRuntimeContent,
+} from "./runtime-content";
 
 const stores: PersistenceStore[] = [];
 
@@ -38,6 +43,37 @@ function chapterQuestions(chapter: Chapter): ContentQuestion[] {
   return chapter.steps
     .map((step) => step.question)
     .filter((question): question is ContentQuestion => question !== undefined);
+}
+
+function recordSnapshot(
+  persistence: PersistenceStore,
+  input: {
+    id: string;
+    contentVersion: string;
+    rolloutPercent: number;
+    previousSnapshotId?: string;
+  },
+) {
+  const graph = buildRuntimeContentGraph(persistence);
+  const now = new Date().toISOString();
+  persistence.recordContentSnapshot({
+    id: input.id,
+    draftId: `draft.${input.id}`,
+    contentVersion: input.contentVersion,
+    graphHash: "a".repeat(64),
+    curriculumHash: "b".repeat(64),
+    itemSetHash: "c".repeat(64),
+    graph: {
+      ...graph,
+      contentVersion: input.contentVersion,
+    } as unknown as Record<string, unknown>,
+    status: "active",
+    rolloutPercent: input.rolloutPercent,
+    createdBy: "publisher.1",
+    createdAt: now,
+    activatedAt: now,
+    previousSnapshotId: input.previousSnapshotId,
+  });
 }
 
 describe("runtime content", () => {
@@ -115,5 +151,55 @@ describe("runtime content", () => {
       persistence,
     );
     expect(staticResult.correctCount).toBeLessThan(questions.length);
+  });
+
+  it("serves the newest snapshot to the configured rollout percentage", () => {
+    const persistence = createStore();
+    recordSnapshot(persistence, {
+      id: "snapshot.rollout.a",
+      contentVersion: "v.A",
+      rolloutPercent: 100,
+    });
+    recordSnapshot(persistence, {
+      id: "snapshot.rollout.b",
+      contentVersion: "v.B",
+      rolloutPercent: 1,
+      previousSnapshotId: "snapshot.rollout.a",
+    });
+
+    const profiles = Array.from({ length: 300 }, (_, index) => `profile.${index}`);
+    const inRollout = profiles.find(
+      (profileId) => contentRolloutBucket(profileId) === 0,
+    );
+    const outOfRollout = profiles.find(
+      (profileId) => contentRolloutBucket(profileId) >= 1,
+    );
+    expect(inRollout).toBeDefined();
+    expect(outOfRollout).toBeDefined();
+
+    expect(
+      resolveRuntimeContent(persistence, { profileId: inRollout }).snapshotId,
+    ).toBe("snapshot.rollout.b");
+    expect(
+      resolveRuntimeContent(persistence, { profileId: outOfRollout })
+        .snapshotId,
+    ).toBe("snapshot.rollout.a");
+  });
+
+  it("resolves a pinned snapshot even after it is retired", () => {
+    const persistence = createStore();
+    recordSnapshot(persistence, {
+      id: "snapshot.pinned",
+      contentVersion: "v.PINNED",
+      rolloutPercent: 100,
+    });
+    persistence.retireContentSnapshot("snapshot.pinned");
+
+    const resolved = resolveRuntimeContent(persistence, {
+      snapshotId: "snapshot.pinned",
+    });
+
+    expect(resolved.snapshotId).toBe("snapshot.pinned");
+    expect(resolved.graph.contentVersion).toBe("v.PINNED");
   });
 });

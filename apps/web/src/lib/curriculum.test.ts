@@ -5,7 +5,7 @@ describe("curriculum plan", () => {
   it("publishes all ten ordered playable stages", () => {
     const plan = getCurriculumPlan();
 
-    expect(plan.contentVersion).toBe("2026.09.20.2");
+    expect(plan.contentVersion).toBe("2026.09.20.3");
     expect(plan.totalStages).toBe(10);
     expect(plan.stages).toHaveLength(10);
     expect(plan.stages.map((stage) => stage.stageNo)).toEqual([
@@ -24,13 +24,13 @@ describe("curriculum plan", () => {
     expect(secondStage.prerequisiteMilestoneId).toBe(
       plan.stages[0].milestoneId,
     );
-    expect(secondStage.chapters).toHaveLength(2);
+    expect(secondStage.chapters).toHaveLength(3);
     expect(secondStage.boss?.questionCount).toBe(10);
-    expect(tenthStage.chapters).toHaveLength(2);
+    expect(tenthStage.chapters).toHaveLength(3);
     expect(tenthStage.boss?.questionCount).toBe(10);
     expect(plan.counts).toMatchObject({
       nodes: 12,
-      chapters: 21,
+      chapters: 30,
       milestones: 10,
       bosses: 10,
     });

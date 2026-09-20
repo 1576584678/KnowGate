@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import {
   expect,
   test,
@@ -13,10 +14,55 @@ import {
 const playerId = "e2e.p0.player";
 const uiPlayerId = "e2e.p0.browser";
 const integrityPlayerId = "e2e.p0.integrity";
-const adminHeaders = {
-  "x-knowgate-admin-token": "local-admin",
-  "x-knowgate-operator-id": "e2e-admin",
-};
+const adminEmail = "admin@knowgate.local";
+const adminPassword = "local-admin";
+const adminTotpSecret = "JBSWY3DPEHPK3PXP";
+
+function decodeBase32(value: string) {
+  const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  const normalized = value.toUpperCase().replace(/=+$/u, "");
+  let bits = "";
+
+  for (const character of normalized) {
+    const index = alphabet.indexOf(character);
+    if (index < 0) throw new Error("Invalid TOTP secret");
+    bits += index.toString(2).padStart(5, "0");
+  }
+
+  const bytes: number[] = [];
+  for (let index = 0; index + 8 <= bits.length; index += 8) {
+    bytes.push(Number.parseInt(bits.slice(index, index + 8), 2));
+  }
+  return Buffer.from(bytes);
+}
+
+function currentTotp(secret: string) {
+  const counter = Math.floor(Date.now() / 30_000);
+  const buffer = Buffer.alloc(8);
+  buffer.writeBigUInt64BE(BigInt(counter));
+  const digest = createHmac("sha1", decodeBase32(secret))
+    .update(buffer)
+    .digest();
+  const offset = digest[digest.length - 1] & 0x0f;
+  const code =
+    (((digest[offset] & 0x7f) << 24) |
+      ((digest[offset + 1] & 0xff) << 16) |
+      ((digest[offset + 2] & 0xff) << 8) |
+      (digest[offset + 3] & 0xff)) %
+    1_000_000;
+  return code.toString().padStart(6, "0");
+}
+
+async function loginAdmin(request: APIRequestContext) {
+  const response = await request.post("/api/v1/admin/auth/login", {
+    data: {
+      email: adminEmail,
+      password: adminPassword,
+      totp: currentTotp(adminTotpSecret),
+    },
+  });
+  expect(response.status(), await response.text()).toBe(200);
+}
 
 function playerHeaders(json = false, profileId = playerId) {
   return {
@@ -155,9 +201,10 @@ test.describe("P0 product flow", () => {
   test("supports content validation, generated questions and review workflow", async ({
     request,
   }) => {
+    await loginAdmin(request);
+
     const curriculumResponse = await request.get(
       "/api/v1/admin/content/curriculum",
-      { headers: adminHeaders },
     );
     expect(curriculumResponse.ok()).toBe(true);
     const curriculum = (await curriculumResponse.json()) as {
@@ -173,7 +220,7 @@ test.describe("P0 product flow", () => {
     const generationResponse = await request.post(
       "/api/v1/admin/content/questions/generate",
       {
-        headers: { ...adminHeaders, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         data: {
           seed: 20260920,
           questionCount: 10,
@@ -200,7 +247,7 @@ test.describe("P0 product flow", () => {
     const createResponse = await request.post(
       "/api/v1/admin/content/drafts",
       {
-        headers: { ...adminHeaders, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         data: {
           kind: "chapter",
           title,
@@ -226,7 +273,7 @@ test.describe("P0 product flow", () => {
       const reviewResponse = await request.post(
         `/api/v1/admin/content/drafts/${created.draft.id}/review`,
         {
-          headers: { ...adminHeaders, "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json" },
           data: {
             action,
             note: `e2e ${action}`,
@@ -242,7 +289,6 @@ test.describe("P0 product flow", () => {
 
     const publicationsResponse = await request.get(
       "/api/v1/admin/content/publications",
-      { headers: adminHeaders },
     );
     expect(publicationsResponse.ok()).toBe(true);
     const publications = (await publicationsResponse.json()) as {
@@ -340,9 +386,11 @@ test.describe("P0 product flow", () => {
 
   test("renders the ten-stage map, a chapter, and the content console", async ({
     page,
+    context,
     request,
   }) => {
     await resetPlayer(request, uiPlayerId);
+    await loginAdmin(context.request);
     await page.addInitScript((profileId) => {
       window.localStorage.setItem("knowgate.profile.v1", profileId);
       window.localStorage.removeItem("knowgate.progress.v1");

@@ -2066,8 +2066,8 @@ main {
   font-weight: 800;
 }
 
-.admin-toolbar input,
-.draft-form input,
+  .admin-toolbar input,
+  .draft-form input,
 .draft-form select,
 .draft-form textarea,
 .draft-card__actions input {
@@ -2078,8 +2078,47 @@ main {
   background: var(--color-surface-soft);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
-  font: inherit;
-}
+    font: inherit;
+  }
+
+  .admin-auth-card {
+    width: min(100%, 520px);
+    margin: 0 auto;
+    padding: var(--space-5);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-panel);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .admin-operator {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .admin-operator > svg {
+    flex: 0 0 auto;
+    color: var(--color-primary);
+  }
+
+  .admin-operator > div {
+    display: grid;
+    min-width: 0;
+  }
+
+  .admin-operator strong,
+  .admin-operator span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .admin-operator span {
+    color: var(--color-muted);
+    font-size: var(--text-xs);
+  }
 
 .draft-form textarea {
   min-height: 220px;

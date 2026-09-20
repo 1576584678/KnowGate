@@ -20,7 +20,7 @@ const statuses: ContentDraftStatus[] = [
 ];
 
 export async function GET(request: Request) {
-  const unauthorized = requireAdminRequest(request);
+  const unauthorized = requireAdminRequest(request, "content:read");
   if (unauthorized) return unauthorized;
 
   const requestedStatus = new URL(request.url).searchParams.get("status");
@@ -44,7 +44,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const unauthorized = requireAdminRequest(request);
+  const unauthorized = requireAdminRequest(request, "content:write");
   if (unauthorized) return unauthorized;
 
   try {

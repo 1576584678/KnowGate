@@ -9,14 +9,14 @@ import { buildRuntimeContentGraph } from "@/lib/runtime-content";
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
-  const unauthorized = requireAdminRequest(request);
+  const unauthorized = requireAdminRequest(request, "content:read");
   if (unauthorized) return unauthorized;
 
   return NextResponse.json(getParameterizedQuestionCapabilities());
 }
 
 export async function POST(request: Request) {
-  const unauthorized = requireAdminRequest(request);
+  const unauthorized = requireAdminRequest(request, "content:write");
   if (unauthorized) return unauthorized;
 
   try {

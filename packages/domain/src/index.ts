@@ -19,14 +19,23 @@ export type ContentQuestion = {
   id: string;
   nodeId: string;
   kind: QuestionKind;
+  difficulty?: QuestionDifficulty;
   prompt: string;
   options: string[];
   answerIndex: number;
   explanation: string;
   timeLimitSec: number;
   damage: number;
+  errorTags?: string[];
+  sourceType?: ContentSourceType;
+  license?: string;
+  authorId?: string;
   visual?: FractionVisual;
 };
+
+export type QuestionDifficulty = "foundation" | "standard" | "challenge";
+
+export type ContentSourceType = "original" | "public_domain" | "cc" | "licensed";
 
 export type LessonPhase =
   | "hook"
@@ -226,7 +235,41 @@ export type ContentDraft = {
 export type ContentReviewRecord = {
   id: string;
   draftId: string;
-  action: "submitted" | "approved" | "rejected" | "published";
+  action:
+    | "submitted"
+    | "approved"
+    | "rejected"
+    | "published"
+    | "rollback"
+    | "retired";
+  operatorId: string;
+  note?: string;
+  occurredAt: string;
+};
+
+export type ContentSnapshotStatus = "active" | "superseded" | "retired";
+
+export type ContentSnapshot = {
+  id: string;
+  draftId: string;
+  contentVersion: string;
+  graphHash: string;
+  curriculumHash: string;
+  itemSetHash: string;
+  graph: Record<string, unknown>;
+  status: ContentSnapshotStatus;
+  rolloutPercent: number;
+  createdBy: string;
+  createdAt: string;
+  activatedAt?: string;
+  retiredAt?: string;
+  previousSnapshotId?: string;
+};
+
+export type ContentPublicationAudit = {
+  id: string;
+  snapshotId: string;
+  action: "published" | "activated" | "rollback" | "retired";
   operatorId: string;
   note?: string;
   occurredAt: string;
@@ -236,6 +279,7 @@ export type BattleSession = {
   id: string;
   milestoneId: string;
   contentVersion: string;
+  contentSnapshotId?: string;
   boss: Boss;
   mode: BattleMode;
   status: BattleStatus;
@@ -401,6 +445,7 @@ export function createBattleSession(input: {
   id: string;
   milestoneId: string;
   contentVersion?: string;
+  contentSnapshotId?: string;
   boss: Boss;
   mode: BattleMode;
   questions: BattleQuestion[];
@@ -414,6 +459,7 @@ export function createBattleSession(input: {
     id: input.id,
     milestoneId: input.milestoneId,
     contentVersion: input.contentVersion ?? "local",
+    contentSnapshotId: input.contentSnapshotId,
     boss: input.boss,
     mode: input.mode,
     status: "active",

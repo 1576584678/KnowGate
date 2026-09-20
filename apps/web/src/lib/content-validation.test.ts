@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { ContentQuestion } from "@knowgate/domain";
 import {
   bossQuestions,
   bosses,
@@ -122,6 +123,176 @@ describe("content graph validation", () => {
     );
     expect(() => assertContentGraph(graph)).toThrow(
       /CONTENT_GRAPH_INVALID/,
+    );
+  });
+
+  it("reports question quality gaps and thin chapter coverage", () => {
+    const makeQuestion = (
+      id: string,
+      overrides: Partial<ContentQuestion> = {},
+    ): ContentQuestion => ({
+      id,
+      nodeId: "node.1",
+      kind: "apply",
+      prompt: `题干 ${id}`,
+      options: ["A", "B"],
+      answerIndex: 0,
+      explanation: "解析",
+      timeLimitSec: 30,
+      damage: 1,
+      ...overrides,
+    });
+
+    const graph: ContentGraph = {
+      contentVersion: "test.quality",
+      nodes: [
+        {
+          id: "node.1",
+          name: "节点",
+          domain: "数学",
+          stage: "g4",
+          mastery: [],
+          prerequisites: [],
+        },
+      ],
+      chapters: [
+        {
+          id: "chapter.1",
+          milestoneId: "milestone.1",
+          stageNo: 1,
+          title: "章节一",
+          summary: "",
+          estimatedMinutes: 5,
+          nodeIds: ["node.1"],
+          steps: [
+            {
+              id: "chapter.1.concept",
+              phase: "concept",
+              title: "概念",
+              body: "说明",
+            },
+            {
+              id: "chapter.1.quiz",
+              phase: "quiz",
+              title: "短测",
+              body: "作答",
+              question: makeQuestion("q.duplicate-a", {
+                prompt: "重复的题干",
+                options: ["", ""],
+                explanation: "",
+              }),
+            },
+          ],
+        },
+        {
+          id: "chapter.2",
+          milestoneId: "milestone.1",
+          stageNo: 2,
+          title: "章节二",
+          summary: "",
+          estimatedMinutes: 5,
+          nodeIds: ["node.1"],
+          steps: [
+            {
+              id: "chapter.2.concept",
+              phase: "concept",
+              title: "概念",
+              body: "说明",
+            },
+            {
+              id: "chapter.2.quiz",
+              phase: "quiz",
+              title: "短测",
+              body: "作答",
+              question: makeQuestion("q.duplicate-b", {
+                prompt: "重复的题干",
+              }),
+            },
+          ],
+        },
+        {
+          id: "chapter.3",
+          milestoneId: "milestone.2",
+          stageNo: 3,
+          title: "章节三",
+          summary: "",
+          estimatedMinutes: 5,
+          nodeIds: ["node.1"],
+          steps: [
+            {
+              id: "chapter.3.concept",
+              phase: "concept",
+              title: "概念",
+              body: "说明",
+            },
+            {
+              id: "chapter.3.quiz",
+              phase: "quiz",
+              title: "短测",
+              body: "作答",
+              question: makeQuestion("q.empty-option", {
+                options: ["", "B"],
+              }),
+            },
+          ],
+        },
+      ],
+      milestones: [
+        {
+          id: "milestone.1",
+          stageNo: 1,
+          name: "阶段一",
+          theme: "主题",
+          summary: "",
+          nodeIds: ["node.1"],
+          chapterIds: ["chapter.1", "chapter.2"],
+          bossId: "boss.1",
+        },
+        {
+          id: "milestone.2",
+          stageNo: 2,
+          name: "阶段二",
+          theme: "主题",
+          summary: "",
+          nodeIds: ["node.1"],
+          chapterIds: ["chapter.3"],
+          bossId: "boss.2",
+        },
+      ],
+      bosses: [
+        {
+          id: "boss.1",
+          milestoneId: "milestone.1",
+          name: "Boss1",
+          epithet: "守卫",
+          hp: 1,
+          initialDistance: 1,
+          questionIds: ["q.duplicate-a"],
+        },
+        {
+          id: "boss.2",
+          milestoneId: "milestone.2",
+          name: "Boss2",
+          epithet: "守卫",
+          hp: 1,
+          initialDistance: 1,
+          questionIds: ["q.empty-option"],
+        },
+      ],
+      questions: [],
+    };
+
+    const codes = validateContentGraph(graph).map((issue) => issue.code);
+
+    expect(codes).toEqual(
+      expect.arrayContaining([
+        "EMPTY_OPTION",
+        "DUPLICATE_OPTION",
+        "MISSING_EXPLANATION",
+        "DUPLICATE_PROMPT",
+        "LOW_QUESTION_DENSITY",
+        "STAGE_CONTENT_THIN",
+      ]),
     );
   });
 });

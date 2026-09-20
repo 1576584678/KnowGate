@@ -78,6 +78,30 @@ function validateQuestion(question: ContentQuestion) {
     });
   }
 
+  const normalizedOptions = question.options.map((option) =>
+    option.trim(),
+  );
+  if (normalizedOptions.some((option) => !option)) {
+    issues.push({
+      severity: "error",
+      code: "EMPTY_OPTION",
+      entityType: "question",
+      entityId,
+      message: "题目选项不能为空。",
+    });
+  }
+
+  const uniqueOptions = new Set(normalizedOptions);
+  if (uniqueOptions.size !== normalizedOptions.length) {
+    issues.push({
+      severity: "error",
+      code: "DUPLICATE_OPTION",
+      entityType: "question",
+      entityId,
+      message: "同一道题不能出现重复选项。",
+    });
+  }
+
   if (
     !Number.isInteger(question.answerIndex) ||
     question.answerIndex < 0 ||
@@ -89,6 +113,16 @@ function validateQuestion(question: ContentQuestion) {
       entityType: "question",
       entityId,
       message: "正确答案索引越界。",
+    });
+  }
+
+  if (!question.explanation.trim()) {
+    issues.push({
+      severity: "error",
+      code: "MISSING_EXPLANATION",
+      entityType: "question",
+      entityId,
+      message: "题目需要提供答案解析。",
     });
   }
 
@@ -110,6 +144,85 @@ function validateQuestion(question: ContentQuestion) {
       entityId,
       message: "题目伤害必须大于 0。",
     });
+  }
+
+  return issues;
+}
+
+function collectChapterQuestions(graph: ContentGraph) {
+  const byId = new Map<string, ContentQuestion>();
+
+  for (const chapter of graph.chapters) {
+    for (const step of chapter.steps) {
+      if (step.question) byId.set(step.question.id, step.question);
+    }
+  }
+
+  return [...byId.values()];
+}
+
+function checkDuplicatePrompts(graph: ContentGraph) {
+  const issues: ContentValidationIssue[] = [];
+  const byPrompt = new Map<string, ContentQuestion[]>();
+
+  // Boss variants intentionally reuse chapter prompts with shuffled options,
+  // so duplicate detection only applies to playable chapter questions.
+  for (const question of collectChapterQuestions(graph)) {
+    const key = question.prompt.trim().replace(/\s+/gu, " ").toLowerCase();
+    if (!key) continue;
+    byPrompt.set(key, [...(byPrompt.get(key) ?? []), question]);
+  }
+
+  for (const duplicates of byPrompt.values()) {
+    if (duplicates.length < 2) continue;
+    for (const question of duplicates.slice(1)) {
+      issues.push({
+        severity: "warning",
+        code: "DUPLICATE_PROMPT",
+        entityType: "question",
+        entityId: question.id,
+        message: `题干与另一道题重复：${question.prompt}`,
+      });
+    }
+  }
+
+  return issues;
+}
+
+function checkChapterDensity(graph: ContentGraph) {
+  const issues: ContentValidationIssue[] = [];
+  const chaptersByMilestone = new Map<string, number>();
+
+  for (const chapter of graph.chapters) {
+    const questionCount = chapter.steps.filter(
+      (step) => step.question !== undefined,
+    ).length;
+    if (questionCount < 3) {
+      issues.push({
+        severity: "warning",
+        code: "LOW_QUESTION_DENSITY",
+        entityType: "chapter",
+        entityId: chapter.id,
+        message: "章节题目少于 3 道，覆盖度偏低。",
+      });
+    }
+    chaptersByMilestone.set(
+      chapter.milestoneId,
+      (chaptersByMilestone.get(chapter.milestoneId) ?? 0) + 1,
+    );
+  }
+
+  for (const milestone of graph.milestones) {
+    const chapterCount = chaptersByMilestone.get(milestone.id) ?? 0;
+    if (chapterCount < 2) {
+      issues.push({
+        severity: "warning",
+        code: "STAGE_CONTENT_THIN",
+        entityType: "milestone",
+        entityId: milestone.id,
+        message: "该关卡少于 2 个章节，课程覆盖度不足。",
+      });
+    }
   }
 
   return issues;
@@ -454,6 +567,11 @@ export function validateContentGraph(
       });
     }
   }
+
+  issues.push(
+    ...checkDuplicatePrompts(graph),
+    ...checkChapterDensity(graph),
+  );
 
   return issues;
 }

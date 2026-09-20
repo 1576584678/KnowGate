@@ -8,9 +8,11 @@ import {
   FilePlus2,
   FlaskConical,
   GitBranch,
+  LogOut,
   RefreshCw,
   Send,
   ShieldCheck,
+  UserRound,
   X,
 } from "lucide-react";
 import {
@@ -76,6 +78,13 @@ type Metrics = {
   reports: { viewed: number };
 };
 
+type AdminSession = {
+  userId: string;
+  email: string;
+  displayName: string;
+  roles: string[];
+};
+
 const draftKinds: ContentDraftKind[] = [
   "knowledge_node",
   "chapter",
@@ -84,30 +93,26 @@ const draftKinds: ContentDraftKind[] = [
   "curriculum",
 ];
 
-const tokenStorageKey = "knowgate.admin.token.v1";
-const operatorStorageKey = "knowgate.admin.operator.v1";
-
-function adminHeaders(token: string, operatorId: string, json = false) {
-  return {
-    "x-knowgate-admin-token": token,
-    "x-knowgate-operator-id": operatorId,
-    ...(json ? { "Content-Type": "application/json" } : {}),
-  };
-}
-
 async function readPayload(response: Response) {
   const payload = (await response.json()) as Record<string, unknown>;
   if (!response.ok) {
     const error = payload.error as { message?: string } | undefined;
-    throw new Error(error?.message ?? "请求失败。");
+    const requestError = new Error(error?.message ?? "请求失败。") as Error & {
+      status?: number;
+    };
+    requestError.status = response.status;
+    throw requestError;
   }
   return payload;
 }
 
 export default function AdminContentPage() {
-  const [token, setToken] = useState("local-admin");
-  const [operatorId, setOperatorId] = useState("content-admin");
-  const [ready, setReady] = useState(false);
+  const [session, setSession] = useState<AdminSession | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [loginEmail, setLoginEmail] = useState("admin@knowgate.local");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginTotp, setLoginTotp] = useState("");
+  const [loggingIn, setLoggingIn] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -120,25 +125,49 @@ export default function AdminContentPage() {
   const [notes, setNotes] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    setToken(window.localStorage.getItem(tokenStorageKey) ?? "local-admin");
-    setOperatorId(
-      window.localStorage.getItem(operatorStorageKey) ?? "content-admin",
-    );
-    setReady(true);
+    let cancelled = false;
+
+    async function checkSession() {
+      try {
+        const response = await fetch("/api/v1/admin/auth/login", {
+          credentials: "same-origin",
+        });
+        if (!response.ok) return;
+        const payload = (await response.json()) as {
+          session: AdminSession;
+        };
+        if (!cancelled) setSession(payload.session);
+      } catch {
+        if (!cancelled) setSession(null);
+      } finally {
+        if (!cancelled) setCheckingSession(false);
+      }
+    }
+
+    void checkSession();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const loadAdminData = useCallback(async () => {
+    if (!session) return;
     setLoading(true);
     setError("");
     setNotice("");
 
     try {
-      const headers = adminHeaders(token, operatorId);
       const [draftsResponse, curriculumResponse, metricsResponse] =
         await Promise.all([
-          fetch("/api/v1/admin/content/drafts", { headers }),
-          fetch("/api/v1/admin/content/curriculum", { headers }),
-          fetch("/api/v1/admin/analytics", { headers }),
+          fetch("/api/v1/admin/content/drafts", {
+            credentials: "same-origin",
+          }),
+          fetch("/api/v1/admin/content/curriculum", {
+            credentials: "same-origin",
+          }),
+          fetch("/api/v1/admin/analytics", {
+            credentials: "same-origin",
+          }),
         ]);
       const [draftsPayload, curriculumPayload, metricsPayload] =
         await Promise.all([
@@ -150,19 +179,69 @@ export default function AdminContentPage() {
       setDrafts((draftsPayload.drafts as DraftWithReviews[]) ?? []);
       setCurriculum(curriculumPayload as unknown as CurriculumPlan);
       setMetrics(metricsPayload as unknown as Metrics);
-      window.localStorage.setItem(tokenStorageKey, token);
-      window.localStorage.setItem(operatorStorageKey, operatorId);
       setNotice("后台数据已刷新。");
     } catch (caught) {
+      if (
+        caught instanceof Error &&
+        (caught as Error & { status?: number }).status === 401
+      ) {
+        setSession(null);
+        return;
+      }
       setError(caught instanceof Error ? caught.message : "无法读取后台数据。");
     } finally {
       setLoading(false);
     }
-  }, [operatorId, token]);
+  }, [session]);
 
   useEffect(() => {
-    if (ready) void loadAdminData();
-  }, [ready, loadAdminData]);
+    if (session) void loadAdminData();
+  }, [session, loadAdminData]);
+
+  async function login() {
+    setError("");
+    setNotice("");
+    setLoggingIn(true);
+
+    try {
+      const response = await fetch("/api/v1/admin/auth/login", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: loginEmail,
+          password: loginPassword,
+          totp: loginTotp,
+        }),
+      });
+      const payload = await readPayload(response);
+      setSession(payload.session as AdminSession);
+      setLoginPassword("");
+      setLoginTotp("");
+      setNotice("管理端登录成功。");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "无法登录管理端。");
+    } finally {
+      setLoggingIn(false);
+    }
+  }
+
+  async function logout() {
+    setError("");
+    setNotice("");
+
+    try {
+      await fetch("/api/v1/admin/auth/logout", {
+        method: "POST",
+        credentials: "same-origin",
+      });
+    } finally {
+      setSession(null);
+      setDrafts([]);
+      setCurriculum(null);
+      setMetrics(null);
+    }
+  }
 
   async function createDraft() {
     setError("");
@@ -172,7 +251,8 @@ export default function AdminContentPage() {
       const payload = JSON.parse(payloadText) as Record<string, unknown>;
       const response = await fetch("/api/v1/admin/content/drafts", {
         method: "POST",
-        headers: adminHeaders(token, operatorId, true),
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           kind,
           title,
@@ -207,7 +287,8 @@ export default function AdminContentPage() {
         `/api/v1/admin/content/drafts/${draftId}/review`,
         {
           method: "POST",
-          headers: adminHeaders(token, operatorId, true),
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             action,
             note: notes[draftId] || undefined,
@@ -231,7 +312,8 @@ export default function AdminContentPage() {
         "/api/v1/admin/content/questions/generate",
         {
           method: "POST",
-          headers: adminHeaders(token, operatorId, true),
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             seed: 20260920,
             questionCount: 10,
@@ -245,6 +327,92 @@ export default function AdminContentPage() {
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "出题失败。");
     }
+  }
+
+  if (checkingSession) {
+    return (
+      <div className="page-shell admin-page">
+        <PageIntro
+          eyebrow="内容运营"
+          title="课程内容后台"
+          description="正在验证管理端会话。"
+        />
+      </div>
+    );
+  }
+
+  if (!session) {
+    return (
+      <div className="page-shell admin-page">
+        <PageIntro
+          eyebrow="内容运营"
+          title="课程内容后台"
+          description="使用已授权账号和动态验证码进入内容管理。"
+        />
+        <section className="admin-auth-card" aria-label="管理端登录">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">受控访问</span>
+              <h2>管理员登录</h2>
+            </div>
+            <ShieldCheck size={24} aria-hidden="true" />
+          </div>
+          <div className="draft-form">
+            <label>
+              <span>邮箱</span>
+              <input
+                autoComplete="username"
+                onChange={(event) => setLoginEmail(event.target.value)}
+                type="email"
+                value={loginEmail}
+              />
+            </label>
+            <label>
+              <span>密码</span>
+              <input
+                autoComplete="current-password"
+                onChange={(event) => setLoginPassword(event.target.value)}
+                type="password"
+                value={loginPassword}
+              />
+            </label>
+            <label>
+              <span>动态验证码</span>
+              <input
+                autoComplete="one-time-code"
+                inputMode="numeric"
+                maxLength={6}
+                onChange={(event) => setLoginTotp(event.target.value)}
+                value={loginTotp}
+              />
+            </label>
+            <button
+              className="button button--primary button--wide"
+              disabled={
+                loggingIn ||
+                !loginEmail.trim() ||
+                !loginPassword ||
+                !/^\d{6}$/u.test(loginTotp)
+              }
+              onClick={() => void login()}
+              type="button"
+            >
+              <ShieldCheck size={17} aria-hidden="true" />
+              {loggingIn ? "验证中" : "登录"}
+            </button>
+          </div>
+        </section>
+        {error ? (
+          <div className="feedback" data-tone="error" role="alert">
+            <AlertTriangle size={20} aria-hidden="true" />
+            <div>
+              <strong>登录没有完成</strong>
+              <p>{error}</p>
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
   }
 
   return (
@@ -263,22 +431,15 @@ export default function AdminContentPage() {
       />
 
       <section className="admin-toolbar">
-        <label>
-          <span>管理员令牌</span>
-          <input
-            autoComplete="off"
-            onChange={(event) => setToken(event.target.value)}
-            type="password"
-            value={token}
-          />
-        </label>
-        <label>
-          <span>操作员 ID</span>
-          <input
-            onChange={(event) => setOperatorId(event.target.value)}
-            value={operatorId}
-          />
-        </label>
+        <div className="admin-operator">
+          <UserRound size={20} aria-hidden="true" />
+          <div>
+            <strong>{session.displayName}</strong>
+            <span>
+              {session.email} · {session.roles.join(" / ")}
+            </span>
+          </div>
+        </div>
         <button
           className="button button--primary"
           disabled={loading}
@@ -299,6 +460,14 @@ export default function AdminContentPage() {
         >
           <FlaskConical size={18} aria-hidden="true" />
           生成题组
+        </button>
+        <button
+          className="button button--quiet"
+          onClick={() => void logout()}
+          type="button"
+        >
+          <LogOut size={18} aria-hidden="true" />
+          退出
         </button>
       </section>
 

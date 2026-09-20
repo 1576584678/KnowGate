@@ -2,6 +2,7 @@ import type {
   Boss,
   Chapter,
   ContentQuestion,
+  ContentSnapshot,
   KnowledgeNode,
   Milestone,
 } from "@knowgate/domain";
@@ -99,7 +100,37 @@ function applyPublication(
   };
 }
 
-export function buildRuntimeContentGraph(
+function snapshotGraph(snapshot: ContentSnapshot): ContentGraph {
+  const graph = snapshot.graph as Partial<ContentGraph>;
+  if (
+    typeof graph.contentVersion !== "string" ||
+    !Array.isArray(graph.nodes) ||
+    !Array.isArray(graph.chapters) ||
+    !Array.isArray(graph.milestones) ||
+    !Array.isArray(graph.bosses) ||
+    !Array.isArray(graph.questions)
+  ) {
+    throw new Error("CONTENT_SNAPSHOT_INVALID");
+  }
+
+  return graph as ContentGraph;
+}
+
+export function contentRolloutBucket(profileId: string) {
+  let hash = 2166136261;
+  for (const character of profileId) {
+    hash ^= character.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return Math.abs(hash) % 100;
+}
+
+function selectActiveSnapshot(snapshots: ContentSnapshot[]) {
+  if (snapshots.length === 0) return undefined;
+  return snapshots.at(-1);
+}
+
+function legacyRuntimeContent(
   persistence: PersistenceStore = getPersistence(),
 ): ContentGraph {
   let graph: ContentGraph = {
@@ -118,6 +149,58 @@ export function buildRuntimeContentGraph(
   }
 
   return graph;
+}
+
+export function resolveRuntimeContent(
+  persistence: PersistenceStore = getPersistence(),
+  options: { profileId?: string; snapshotId?: string } = {},
+) {
+  const snapshots = persistence.getContentSnapshots("active");
+  // A pinned snapshot is resolved even after retirement so that an
+  // in-progress session keeps the exact content version it started on.
+  const pinned = options.snapshotId
+    ? persistence.getContentSnapshot(options.snapshotId)
+    : undefined;
+  const snapshot = pinned ?? selectActiveSnapshot(snapshots);
+  const current = snapshots.at(-1);
+  const rolloutSnapshot =
+    !options.snapshotId &&
+    options.profileId &&
+    current &&
+    contentRolloutBucket(options.profileId) >= current.rolloutPercent &&
+    current.previousSnapshotId
+      ? persistence.getContentSnapshot(current.previousSnapshotId)
+      : undefined;
+  const resolved =
+    rolloutSnapshot && rolloutSnapshot.status !== "retired"
+      ? rolloutSnapshot
+      : snapshot;
+
+  if (!resolved) {
+    const graph = legacyRuntimeContent(persistence);
+    return {
+      graph,
+      snapshotId: undefined,
+      graphHash: undefined,
+      curriculumHash: undefined,
+      itemSetHash: undefined,
+    };
+  }
+
+  return {
+    graph: snapshotGraph(resolved),
+    snapshotId: resolved.id,
+    graphHash: resolved.graphHash,
+    curriculumHash: resolved.curriculumHash,
+    itemSetHash: resolved.itemSetHash,
+  };
+}
+
+export function buildRuntimeContentGraph(
+  persistence: PersistenceStore = getPersistence(),
+  options: { profileId?: string; snapshotId?: string } = {},
+): ContentGraph {
+  return resolveRuntimeContent(persistence, options).graph;
 }
 
 export function getRuntimeGradeWorld(

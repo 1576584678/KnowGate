@@ -7,7 +7,10 @@ import type {
   ContentDraft,
   ContentDraftKind,
   ContentDraftStatus,
+  ContentPublicationAudit,
   ContentReviewRecord,
+  ContentSnapshot,
+  ContentSnapshotStatus,
   LearningEvent,
   ProgressSnapshot,
 } from "@knowgate/domain";
@@ -78,6 +81,32 @@ type PublishedContentRow = {
   published_at: string;
 };
 
+type ContentSnapshotRow = {
+  id: string;
+  draft_id: string;
+  content_version: string;
+  graph_hash: string;
+  curriculum_hash: string;
+  item_set_hash: string;
+  graph_json: string;
+  status: ContentSnapshotStatus;
+  rollout_percent: number;
+  created_by: string;
+  created_at: string;
+  activated_at: string | null;
+  retired_at: string | null;
+  previous_snapshot_id: string | null;
+};
+
+type ContentPublicationAuditRow = {
+  id: string;
+  snapshot_id: string;
+  action: ContentPublicationAudit["action"];
+  operator_id: string;
+  note: string | null;
+  occurred_at: string;
+};
+
 export type ChapterCompletionRecord = {
   chapterId: string;
   score: number;
@@ -94,6 +123,38 @@ export type PublishedContentRecord = {
   payload: Record<string, unknown>;
   publishedAt: string;
 };
+
+function mapContentSnapshot(row: ContentSnapshotRow): ContentSnapshot {
+  return {
+    id: row.id,
+    draftId: row.draft_id,
+    contentVersion: row.content_version,
+    graphHash: row.graph_hash,
+    curriculumHash: row.curriculum_hash,
+    itemSetHash: row.item_set_hash,
+    graph: parseJson<Record<string, unknown>>(row.graph_json, {}),
+    status: row.status,
+    rolloutPercent: row.rollout_percent,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    activatedAt: row.activated_at ?? undefined,
+    retiredAt: row.retired_at ?? undefined,
+    previousSnapshotId: row.previous_snapshot_id ?? undefined,
+  };
+}
+
+function mapContentPublicationAudit(
+  row: ContentPublicationAuditRow,
+): ContentPublicationAudit {
+  return {
+    id: row.id,
+    snapshotId: row.snapshot_id,
+    action: row.action,
+    operatorId: row.operator_id,
+    note: row.note ?? undefined,
+    occurredAt: row.occurred_at,
+  };
+}
 
 export type PersistenceStore = ReturnType<typeof createPersistence>;
 
@@ -228,6 +289,39 @@ export function createPersistence(databasePath = defaultDatabasePath()) {
 
     CREATE INDEX IF NOT EXISTS published_content_entity_idx
       ON published_content (kind, entity_id, published_at);
+
+    CREATE TABLE IF NOT EXISTS content_snapshots (
+      id TEXT PRIMARY KEY,
+      draft_id TEXT NOT NULL,
+      content_version TEXT NOT NULL,
+      graph_hash TEXT NOT NULL,
+      curriculum_hash TEXT NOT NULL,
+      item_set_hash TEXT NOT NULL,
+      graph_json TEXT NOT NULL,
+      status TEXT NOT NULL,
+      rollout_percent INTEGER NOT NULL DEFAULT 100,
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      activated_at TEXT,
+      retired_at TEXT,
+      previous_snapshot_id TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS content_snapshots_status_idx
+      ON content_snapshots (status, created_at);
+
+    CREATE TABLE IF NOT EXISTS content_publication_audit (
+      id TEXT PRIMARY KEY,
+      snapshot_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      operator_id TEXT NOT NULL,
+      note TEXT,
+      occurred_at TEXT NOT NULL,
+      FOREIGN KEY (snapshot_id) REFERENCES content_snapshots (id)
+    );
+
+    CREATE INDEX IF NOT EXISTS content_publication_audit_snapshot_idx
+      ON content_publication_audit (snapshot_id, occurred_at);
   `);
 
   ensureColumn(database, "chapter_progress", "score", "INTEGER NOT NULL DEFAULT 0");
@@ -749,6 +843,291 @@ export function createPersistence(databasePath = defaultDatabasePath()) {
         payload: parseJson<Record<string, unknown>>(row.payload_json, {}),
         publishedAt: row.published_at,
       }));
+    },
+
+    recordContentSnapshot(snapshot: ContentSnapshot) {
+      if (snapshot.status === "active") {
+        database
+          .prepare(
+            `
+              UPDATE content_snapshots
+              SET status = 'superseded'
+              WHERE status = 'active'
+            `,
+          )
+          .run();
+      }
+
+      database
+        .prepare(
+          `
+            INSERT INTO content_snapshots (
+              id,
+              draft_id,
+              content_version,
+              graph_hash,
+              curriculum_hash,
+              item_set_hash,
+              graph_json,
+              status,
+              rollout_percent,
+              created_by,
+              created_at,
+              activated_at,
+              retired_at,
+              previous_snapshot_id
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `,
+        )
+        .run(
+          snapshot.id,
+          snapshot.draftId,
+          snapshot.contentVersion,
+          snapshot.graphHash,
+          snapshot.curriculumHash,
+          snapshot.itemSetHash,
+          JSON.stringify(snapshot.graph),
+          snapshot.status,
+          snapshot.rolloutPercent,
+          snapshot.createdBy,
+          snapshot.createdAt,
+          snapshot.activatedAt ?? null,
+          snapshot.retiredAt ?? null,
+          snapshot.previousSnapshotId ?? null,
+        );
+    },
+
+    getContentSnapshot(snapshotId: string): ContentSnapshot | undefined {
+      const row = database
+        .prepare(
+          `
+            SELECT
+              id,
+              draft_id,
+              content_version,
+              graph_hash,
+              curriculum_hash,
+              item_set_hash,
+              graph_json,
+              status,
+              rollout_percent,
+              created_by,
+              created_at,
+              activated_at,
+              retired_at,
+              previous_snapshot_id
+            FROM content_snapshots
+            WHERE id = ?
+          `,
+        )
+        .get(snapshotId) as ContentSnapshotRow | undefined;
+
+      return row ? mapContentSnapshot(row) : undefined;
+    },
+
+    getContentSnapshots(
+      status?: ContentSnapshotStatus,
+    ): ContentSnapshot[] {
+      const rows = (
+        status
+          ? database
+              .prepare(
+                `
+                  SELECT
+                    id,
+                    draft_id,
+                    content_version,
+                    graph_hash,
+                    curriculum_hash,
+                    item_set_hash,
+                    graph_json,
+                    status,
+                    rollout_percent,
+                    created_by,
+                    created_at,
+                    activated_at,
+                    retired_at,
+                    previous_snapshot_id
+                  FROM content_snapshots
+                  WHERE status = ?
+                  ORDER BY COALESCE(activated_at, created_at) ASC, created_at ASC, id ASC
+                `,
+              )
+              .all(status)
+          : database
+              .prepare(
+                `
+                  SELECT
+                    id,
+                    draft_id,
+                    content_version,
+                    graph_hash,
+                    curriculum_hash,
+                    item_set_hash,
+                    graph_json,
+                    status,
+                    rollout_percent,
+                    created_by,
+                    created_at,
+                    activated_at,
+                    retired_at,
+                    previous_snapshot_id
+                  FROM content_snapshots
+                  ORDER BY COALESCE(activated_at, created_at) ASC, created_at ASC, id ASC
+                `,
+              )
+              .all()
+      ) as ContentSnapshotRow[];
+
+      return rows.map(mapContentSnapshot);
+    },
+
+    activateContentSnapshot(snapshotId: string, rolloutPercent = 100) {
+      const snapshot = this.getContentSnapshot(snapshotId);
+      if (!snapshot) return undefined;
+
+      const activatedAt = new Date().toISOString();
+      database
+        .prepare(
+          `
+            UPDATE content_snapshots
+            SET status = 'retired', retired_at = ?
+            WHERE id <> ?
+              AND status IN ('active', 'superseded')
+              AND COALESCE(activated_at, created_at) > COALESCE(?, created_at)
+          `,
+        )
+        .run(
+          activatedAt,
+          snapshotId,
+          snapshot.activatedAt ?? snapshot.createdAt,
+        );
+      database
+        .prepare(
+          `
+            UPDATE content_snapshots
+            SET status = 'superseded'
+            WHERE id <> ? AND status = 'active'
+          `,
+        )
+        .run(snapshotId);
+      database
+        .prepare(
+          `
+            UPDATE content_snapshots
+            SET
+              status = 'active',
+              rollout_percent = ?,
+              activated_at = ?,
+              retired_at = NULL
+            WHERE id = ?
+          `,
+        )
+        .run(
+          Math.max(1, Math.min(100, Math.round(rolloutPercent))),
+          activatedAt,
+          snapshotId,
+        );
+
+      return this.getContentSnapshot(snapshotId);
+    },
+
+    retireContentSnapshot(snapshotId: string) {
+      const snapshot = this.getContentSnapshot(snapshotId);
+      if (!snapshot) return undefined;
+
+      const retiredAt = new Date().toISOString();
+      database
+        .prepare(
+          `
+            UPDATE content_snapshots
+            SET status = 'retired', retired_at = ?
+            WHERE id = ?
+          `,
+        )
+        .run(retiredAt, snapshotId);
+
+      if (snapshot.status === "active" && snapshot.previousSnapshotId) {
+        const previous = this.getContentSnapshot(snapshot.previousSnapshotId);
+        if (previous && previous.status !== "retired") {
+          database
+            .prepare(
+              `
+                UPDATE content_snapshots
+                SET status = 'active', activated_at = ?, retired_at = NULL
+                WHERE id = ?
+              `,
+            )
+            .run(retiredAt, previous.id);
+        }
+      }
+
+      return this.getContentSnapshot(snapshotId);
+    },
+
+    recordPublicationAudit(audit: ContentPublicationAudit) {
+      database
+        .prepare(
+          `
+            INSERT INTO content_publication_audit (
+              id,
+              snapshot_id,
+              action,
+              operator_id,
+              note,
+              occurred_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+          `,
+        )
+        .run(
+          audit.id,
+          audit.snapshotId,
+          audit.action,
+          audit.operatorId,
+          audit.note ?? null,
+          audit.occurredAt,
+        );
+    },
+
+    getPublicationAudit(snapshotId?: string): ContentPublicationAudit[] {
+      const rows = (
+        snapshotId
+          ? database
+              .prepare(
+                `
+                  SELECT
+                    id,
+                    snapshot_id,
+                    action,
+                    operator_id,
+                    note,
+                    occurred_at
+                  FROM content_publication_audit
+                  WHERE snapshot_id = ?
+                  ORDER BY occurred_at ASC, id ASC
+                `,
+              )
+              .all(snapshotId)
+          : database
+              .prepare(
+                `
+                  SELECT
+                    id,
+                    snapshot_id,
+                    action,
+                    operator_id,
+                    note,
+                    occurred_at
+                  FROM content_publication_audit
+                  ORDER BY occurred_at ASC, id ASC
+                `,
+              )
+              .all()
+      ) as ContentPublicationAuditRow[];
+
+      return rows.map(mapContentPublicationAudit);
     },
 
     getProgress(profileId: string): ProgressSnapshot {
