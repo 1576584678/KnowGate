@@ -10,13 +10,20 @@ import {
 } from "react";
 import type {
   BattleOutcome,
+  ChapterCompletionAnswer,
+  ChapterCompletionResult,
   ProgressSnapshot,
 } from "@knowgate/domain";
 import { profileHeaders } from "@/lib/profile";
 
 type ProgressContextValue = ProgressSnapshot & {
   ready: boolean;
-  completeChapter: (chapterId: string) => void;
+  completeChapter: (input: {
+    chapterId: string;
+    answers: ChapterCompletionAnswer[];
+    durationSec: number;
+    contentVersion: string;
+  }) => Promise<ChapterCompletionResult | null>;
   recordBattle: (outcome: BattleOutcome) => void;
   resetProgress: () => void;
 };
@@ -134,6 +141,45 @@ async function migrateLocalProgress(
   await Promise.allSettled([...chapterUpdates, ...outcomeUpdates]);
 }
 
+async function requestChapterCompletion(input: {
+  chapterId: string;
+  answers: ChapterCompletionAnswer[];
+  durationSec: number;
+  contentVersion: string;
+}): Promise<{
+  result: ChapterCompletionResult;
+  progress: ProgressSnapshot;
+} | null> {
+  try {
+    const response = await fetch(
+      `/api/v1/chapters/${encodeURIComponent(input.chapterId)}/complete`,
+      {
+        method: "POST",
+        headers: profileHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          answers: input.answers,
+          durationSec: input.durationSec,
+          contentVersion: input.contentVersion,
+        }),
+      },
+    );
+    if (!response.ok) return null;
+
+    const payload = (await response.json()) as {
+      result?: ChapterCompletionResult;
+      progress?: unknown;
+    };
+    if (!payload.result) return null;
+
+    return {
+      result: payload.result,
+      progress: normalizeProgress(payload.progress),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function ProgressProvider({ children }: { children: ReactNode }) {
   const [progress, setProgress] = useState<ProgressSnapshot>(emptyProgress);
   const [ready, setReady] = useState(false);
@@ -177,17 +223,29 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     () => ({
       ...progress,
       ready,
-      completeChapter(chapterId) {
+      async completeChapter(input) {
+        const response = await requestChapterCompletion(input);
+
+        if (response?.result.passed) {
+          setProgress(response.progress);
+          return response.result;
+        }
+
+        if (response) {
+          return response.result;
+        }
+
         setProgress((current) => ({
           ...current,
-          passedChapterIds: current.passedChapterIds.includes(chapterId)
+          passedChapterIds: current.passedChapterIds.includes(input.chapterId)
             ? current.passedChapterIds
-            : [...current.passedChapterIds, chapterId],
+            : [...current.passedChapterIds, input.chapterId],
         }));
         void requestProgress("POST", {
           type: "chapter_completed",
-          chapterId,
+          chapterId: input.chapterId,
         });
+        return null;
       },
       recordBattle(outcome) {
         setProgress((current) => ({

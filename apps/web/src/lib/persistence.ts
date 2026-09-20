@@ -4,6 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import type {
   BattleOutcome,
   BattleSession,
+  LearningEvent,
   ProgressSnapshot,
 } from "@knowgate/domain";
 
@@ -13,6 +14,9 @@ type BattleSessionRow = {
 
 type ChapterProgressRow = {
   chapter_id: string;
+  score: number;
+  duration_sec: number;
+  completed_at: string;
 };
 
 type BattleOutcomeRow = {
@@ -22,6 +26,24 @@ type BattleOutcomeRow = {
   max_combo: number;
   mistakes_json: string;
   completed_at: string;
+};
+
+type LearningEventRow = {
+  id: string;
+  profile_id: string;
+  event_type: LearningEvent["eventType"];
+  entity_type: string;
+  entity_id: string;
+  payload_json: string;
+  occurred_at: string;
+  content_version: string | null;
+};
+
+export type ChapterCompletionRecord = {
+  chapterId: string;
+  score: number;
+  durationSec: number;
+  completedAt: string;
 };
 
 export type PersistenceStore = ReturnType<typeof createPersistence>;
@@ -38,6 +60,21 @@ function parseJson<Value>(value: string, fallback: Value): Value {
     return JSON.parse(value) as Value;
   } catch {
     return fallback;
+  }
+}
+
+function ensureColumn(
+  database: DatabaseSync,
+  table: string,
+  column: string,
+  definition: string,
+) {
+  const columns = database
+    .prepare(`PRAGMA table_info(${table})`)
+    .all() as Array<{ name: string }>;
+
+  if (!columns.some((item) => item.name === column)) {
+    database.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
   }
 }
 
@@ -67,9 +104,25 @@ export function createPersistence(databasePath = defaultDatabasePath()) {
     CREATE TABLE IF NOT EXISTS chapter_progress (
       profile_id TEXT NOT NULL,
       chapter_id TEXT NOT NULL,
+      score INTEGER NOT NULL DEFAULT 0,
+      duration_sec INTEGER NOT NULL DEFAULT 0,
       completed_at TEXT NOT NULL,
       PRIMARY KEY (profile_id, chapter_id)
     );
+
+    CREATE TABLE IF NOT EXISTS learning_events (
+      id TEXT PRIMARY KEY,
+      profile_id TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      entity_type TEXT NOT NULL,
+      entity_id TEXT NOT NULL,
+      payload_json TEXT NOT NULL,
+      occurred_at TEXT NOT NULL,
+      content_version TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS learning_events_profile_idx
+      ON learning_events (profile_id, occurred_at);
 
     CREATE TABLE IF NOT EXISTS battle_outcomes (
       profile_id TEXT NOT NULL,
@@ -82,6 +135,14 @@ export function createPersistence(databasePath = defaultDatabasePath()) {
       PRIMARY KEY (profile_id, milestone_id)
     );
   `);
+
+  ensureColumn(database, "chapter_progress", "score", "INTEGER NOT NULL DEFAULT 0");
+  ensureColumn(
+    database,
+    "chapter_progress",
+    "duration_sec",
+    "INTEGER NOT NULL DEFAULT 0",
+  );
 
   return {
     saveBattleSession(profileId: string, session: BattleSession) {
@@ -138,17 +199,112 @@ export function createPersistence(databasePath = defaultDatabasePath()) {
       profileId: string,
       chapterId: string,
       completedAt = new Date().toISOString(),
+      score = 0,
+      durationSec = 0,
     ) {
       database
         .prepare(
           `
-            INSERT INTO chapter_progress (profile_id, chapter_id, completed_at)
-            VALUES (?, ?, ?)
+            INSERT INTO chapter_progress (
+              profile_id,
+              chapter_id,
+              score,
+              duration_sec,
+              completed_at
+            )
+            VALUES (?, ?, ?, ?, ?)
             ON CONFLICT(profile_id, chapter_id) DO UPDATE SET
+              score = excluded.score,
+              duration_sec = excluded.duration_sec,
               completed_at = excluded.completed_at
           `,
         )
-        .run(profileId, chapterId, completedAt);
+        .run(profileId, chapterId, score, durationSec, completedAt);
+    },
+
+    getChapterCompletion(
+      profileId: string,
+      chapterId: string,
+    ): ChapterCompletionRecord | undefined {
+      const row = database
+        .prepare(
+          `
+            SELECT chapter_id, score, duration_sec, completed_at
+            FROM chapter_progress
+            WHERE profile_id = ? AND chapter_id = ?
+          `,
+        )
+        .get(profileId, chapterId) as ChapterProgressRow | undefined;
+
+      return row
+        ? {
+            chapterId: row.chapter_id,
+            score: row.score,
+            durationSec: row.duration_sec,
+            completedAt: row.completed_at,
+          }
+        : undefined;
+    },
+
+    recordEvent(event: LearningEvent) {
+      database
+        .prepare(
+          `
+            INSERT INTO learning_events (
+              id,
+              profile_id,
+              event_type,
+              entity_type,
+              entity_id,
+              payload_json,
+              occurred_at,
+              content_version
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `,
+        )
+        .run(
+          event.id,
+          event.profileId,
+          event.eventType,
+          event.entityType,
+          event.entityId,
+          JSON.stringify(event.payload),
+          event.occurredAt,
+          event.contentVersion ?? null,
+        );
+    },
+
+    getLearningEvents(profileId: string): LearningEvent[] {
+      const events = database
+        .prepare(
+          `
+            SELECT
+              id,
+              profile_id,
+              event_type,
+              entity_type,
+              entity_id,
+              payload_json,
+              occurred_at,
+              content_version
+            FROM learning_events
+            WHERE profile_id = ?
+            ORDER BY occurred_at ASC, id ASC
+          `,
+        )
+        .all(profileId) as LearningEventRow[];
+
+      return events.map((event) => ({
+        id: event.id,
+        profileId: event.profile_id,
+        eventType: event.event_type,
+        entityType: event.entity_type,
+        entityId: event.entity_id,
+        payload: parseJson<Record<string, unknown>>(event.payload_json, {}),
+        occurredAt: event.occurred_at,
+        contentVersion: event.content_version ?? undefined,
+      }));
     },
 
     saveBattleOutcome(profileId: string, outcome: BattleOutcome) {
@@ -239,6 +395,9 @@ export function createPersistence(databasePath = defaultDatabasePath()) {
           .run(profileId);
         database
           .prepare("DELETE FROM battle_outcomes WHERE profile_id = ?")
+          .run(profileId);
+        database
+          .prepare("DELETE FROM learning_events WHERE profile_id = ?")
           .run(profileId);
         database.exec("COMMIT");
       } catch (error) {

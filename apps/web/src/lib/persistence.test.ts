@@ -95,14 +95,65 @@ describe("persistence", () => {
     expect(progress.battleOutcomes["milestone.test"]).toEqual(outcome);
   });
 
+  it("persists chapter scores, durations, and learning events", () => {
+    const { store } = createTestStore();
+
+    store.completeChapter(
+      "profile.test",
+      "chapter.1",
+      "2026-09-20T01:00:00.000Z",
+      85,
+      120,
+    );
+    store.recordEvent({
+      id: "event.1",
+      profileId: "profile.test",
+      eventType: "chapter_completed",
+      entityType: "chapter",
+      entityId: "chapter.1",
+      payload: { score: 85 },
+      occurredAt: "2026-09-20T01:00:00.000Z",
+      contentVersion: "test.1",
+    });
+
+    expect(store.getChapterCompletion("profile.test", "chapter.1")).toEqual({
+      chapterId: "chapter.1",
+      score: 85,
+      durationSec: 120,
+      completedAt: "2026-09-20T01:00:00.000Z",
+    });
+    expect(store.getLearningEvents("profile.test")).toEqual([
+      {
+        id: "event.1",
+        profileId: "profile.test",
+        eventType: "chapter_completed",
+        entityType: "chapter",
+        entityId: "chapter.1",
+        payload: { score: 85 },
+        occurredAt: "2026-09-20T01:00:00.000Z",
+        contentVersion: "test.1",
+      },
+    ]);
+  });
+
   it("resets only the selected profile", () => {
     const { store } = createTestStore();
     store.completeChapter("profile.a", "chapter.1");
     store.completeChapter("profile.b", "chapter.2");
+    store.recordEvent({
+      id: "event.a",
+      profileId: "profile.a",
+      eventType: "chapter_completed",
+      entityType: "chapter",
+      entityId: "chapter.1",
+      payload: {},
+      occurredAt: "2026-09-20T01:00:00.000Z",
+    });
 
     store.resetProgress("profile.a");
 
     expect(store.getProgress("profile.a").passedChapterIds).toEqual([]);
+    expect(store.getLearningEvents("profile.a")).toEqual([]);
     expect(store.getProgress("profile.b").passedChapterIds).toEqual([
       "chapter.2",
     ]);

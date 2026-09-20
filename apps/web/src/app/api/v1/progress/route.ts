@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { BattleOutcome } from "@knowgate/domain";
 import { getChapter, getMilestone } from "@/content/math-grade4";
+import { recordLearningEvent } from "@/lib/chapter-store";
 import { getPersistence } from "@/lib/persistence";
 import { getProfileIdFromRequest } from "@/lib/profile";
 
@@ -52,6 +53,15 @@ export async function POST(request: Request) {
       );
     }
     persistence.completeChapter(profileId, body.chapterId);
+    recordLearningEvent(
+      {
+        profileId,
+        eventType: "chapter_migrated",
+        entityType: "chapter",
+        entityId: body.chapterId,
+      },
+      persistence,
+    );
   } else if (
     body.type === "battle_recorded" &&
     isBattleOutcome(body.outcome)

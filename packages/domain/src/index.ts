@@ -142,6 +142,52 @@ export type MasteryBreakdown = {
   delayedReviewScore: number;
 };
 
+export type ChapterCompletionAnswer = {
+  itemId: string;
+  answer: string;
+};
+
+export type ChapterCompletionResult = {
+  chapterId: string;
+  milestoneId: string;
+  passed: boolean;
+  score: number;
+  correctCount: number;
+  questionCount: number;
+  masteryDelta: Record<string, number>;
+  nextAction: "next_chapter" | "boss_available";
+  contentVersion: string;
+  completedAt: string;
+};
+
+export const learningEventTypes = [
+  "chapter_started",
+  "chapter_completed",
+  "chapter_migrated",
+  "practice_answered",
+  "boss_started",
+  "boss_question_served",
+  "boss_answer_submitted",
+  "boss_answer_resolved",
+  "boss_won",
+  "boss_lost",
+  "remediation_started",
+  "remediation_completed",
+] as const;
+
+export type LearningEventType = (typeof learningEventTypes)[number];
+
+export type LearningEvent = {
+  id: string;
+  profileId: string;
+  eventType: LearningEventType;
+  entityType: string;
+  entityId: string;
+  payload: Record<string, unknown>;
+  occurredAt: string;
+  contentVersion?: string;
+};
+
 export type BattleSession = {
   id: string;
   milestoneId: string;
