@@ -4,11 +4,14 @@ export const PROFILE_HEADER = "x-knowgate-profile-id";
 const PROFILE_STORAGE_KEY = "knowgate.profile.v1";
 const PROFILE_ID_PATTERN = /^[a-zA-Z0-9._:-]{1,128}$/;
 
+export function isValidProfileId(value: string | null | undefined) {
+  const candidate = value?.trim();
+  return Boolean(candidate && PROFILE_ID_PATTERN.test(candidate));
+}
+
 export function normalizeProfileId(value: string | null | undefined) {
   const candidate = value?.trim();
-  return candidate && PROFILE_ID_PATTERN.test(candidate)
-    ? candidate
-    : DEFAULT_PROFILE_ID;
+  return isValidProfileId(candidate) ? candidate! : DEFAULT_PROFILE_ID;
 }
 
 export function getProfileIdFromRequest(request: Request) {
