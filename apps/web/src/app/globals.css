@@ -1097,6 +1097,8 @@ main {
 }
 
 .fraction-visual {
+  --fraction-visual-bar-height: 88px;
+
   display: grid;
   gap: 12px;
   width: min(520px, 100%);
@@ -1120,6 +1122,7 @@ main {
 
 .fraction-visual__bar {
   display: flex;
+  height: var(--fraction-visual-bar-height);
   width: 100%;
   overflow: hidden;
   border: 3px solid #ffffff;
@@ -1130,7 +1133,6 @@ main {
 .fraction-visual__part {
   flex: 1;
   min-width: 18px;
-  aspect-ratio: 1;
   background: #dfe7f0;
   border-right: 2px solid #ffffff;
 }
@@ -1144,6 +1146,8 @@ main {
 }
 
 .fraction-visual--compact {
+  --fraction-visual-bar-height: 64px;
+
   width: min(280px, 100%);
   margin: var(--space-3) 0;
 }

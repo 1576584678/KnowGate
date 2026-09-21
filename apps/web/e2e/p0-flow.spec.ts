@@ -450,4 +450,38 @@ test.describe("P0 product flow", () => {
       page.getByRole("heading", { name: "内容草稿" }),
     ).toBeVisible();
   });
+
+  test("keeps fraction comparison bars at equal height", async ({ page }) => {
+    await page.addInitScript((profileId) => {
+      window.localStorage.setItem("knowgate.profile.v1", profileId);
+      window.localStorage.removeItem("knowgate.progress.v1");
+    }, uiPlayerId);
+
+    await page.goto("/chapters/chapter.fraction.equivalent");
+    const continueButton = page.getByRole("button", { name: "继续" });
+    const quizPrompt = page.getByText("与 2/6 相等的分数是哪一个？");
+
+    for (let step = 0; step < 8; step += 1) {
+      if (await quizPrompt.isVisible()) break;
+
+      for (const answer of ["3/12", "2/8"]) {
+        const answerButton = page.getByRole("button", { name: answer });
+        if (await answerButton.isVisible()) {
+          await answerButton.click();
+          break;
+        }
+      }
+
+      await continueButton.click();
+    }
+
+    await expect(quizPrompt).toBeVisible();
+    const bars = page.locator(".lesson-card .fraction-visual__bar");
+    await expect(bars).toHaveCount(2);
+
+    const heights = await bars.evaluateAll((elements) =>
+      elements.map((element) => element.getBoundingClientRect().height),
+    );
+    expect(new Set(heights.map((height) => Math.round(height))).size).toBe(1);
+  });
 });
