@@ -36,6 +36,11 @@ export type ContentQuestion = {
   visual?: FractionVisual;
 };
 
+export type PublicContentQuestion = Omit<
+  ContentQuestion,
+  "answerIndex" | "explanation"
+>;
+
 export type QuestionDifficulty = "foundation" | "standard" | "challenge";
 
 export type ContentSourceType = "original" | "public_domain" | "cc" | "licensed";
@@ -57,6 +62,10 @@ export type LessonStep = {
   visual?: FractionVisual;
 };
 
+export type PublicLessonStep = Omit<LessonStep, "question"> & {
+  question?: PublicContentQuestion;
+};
+
 export type Chapter = {
   id: string;
   milestoneId: string;
@@ -66,6 +75,10 @@ export type Chapter = {
   estimatedMinutes: number;
   nodeIds: string[];
   steps: LessonStep[];
+};
+
+export type PublicChapter = Omit<Chapter, "steps"> & {
+  steps: PublicLessonStep[];
 };
 
 export type KnowledgeNode = {
@@ -299,7 +312,7 @@ export type BattleSession = {
   startedAt: string;
 };
 
-export type PublicBattleQuestion = Omit<ContentQuestion, "answerIndex"> & {
+export type PublicBattleQuestion = PublicContentQuestion & {
   servedAt: string;
   deadlineAt: string;
 };
@@ -397,7 +410,7 @@ export function publicQuestion(
   question: BattleQuestion,
   servedAt = new Date(),
 ): PublicBattleQuestion {
-  const { answerIndex: _answerIndex, ...safeQuestion } = question;
+  const safeQuestion = publicContentQuestion(question);
   const deadlineAt = new Date(
     servedAt.getTime() + question.timeLimitSec * 1000,
   );
@@ -407,6 +420,17 @@ export function publicQuestion(
     servedAt: toIso(servedAt),
     deadlineAt: toIso(deadlineAt),
   };
+}
+
+export function publicContentQuestion(
+  question: ContentQuestion,
+): PublicContentQuestion {
+  const {
+    answerIndex: _answerIndex,
+    explanation: _explanation,
+    ...safeQuestion
+  } = question;
+  return safeQuestion;
 }
 
 export function toPublicBattleState(

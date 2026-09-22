@@ -1,5 +1,5 @@
 import type { LearningEventType } from "@knowgate/domain";
-import { profileHeaders } from "@/lib/profile";
+import { profileFetch } from "@/lib/profile-client";
 
 export function trackLearningEvent(input: {
   eventType: LearningEventType;
@@ -9,9 +9,9 @@ export function trackLearningEvent(input: {
 }) {
   if (typeof window === "undefined") return;
 
-  void fetch("/api/v1/events", {
+  void profileFetch("/api/v1/events", {
     method: "POST",
-    headers: profileHeaders({ "Content-Type": "application/json" }),
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   }).catch(() => {
     // Analytics must not block the learning flow.

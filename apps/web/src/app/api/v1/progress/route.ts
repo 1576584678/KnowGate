@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { getPersistence } from "@/lib/persistence";
-import { getProfileIdFromRequest } from "@/lib/profile";
+import {
+  getProfileIdFromRequest,
+  profileUnauthorizedResponse,
+} from "@/lib/profile";
 
 export const runtime = "nodejs";
 
@@ -10,12 +13,16 @@ export const runtime = "nodejs";
 // for the current device profile, but never accepts direct progress writes.
 export async function GET(request: Request) {
   const profileId = getProfileIdFromRequest(request);
+  if (!profileId) return profileUnauthorizedResponse();
+
   const progress = getPersistence().getProgress(profileId);
   return NextResponse.json({ progress });
 }
 
 export async function DELETE(request: Request) {
   const profileId = getProfileIdFromRequest(request);
+  if (!profileId) return profileUnauthorizedResponse();
+
   const persistence = getPersistence();
   persistence.resetProgress(profileId);
   return NextResponse.json({ progress: persistence.getProgress(profileId) });

@@ -1,27 +1,24 @@
 import { NextResponse } from "next/server";
-import { answerBattle } from "@/lib/battle-store";
 import {
   getProfileIdFromRequest,
   profileUnauthorizedResponse,
 } from "@/lib/profile";
+import { checkQuestion } from "@/lib/question-check";
 
 export const runtime = "nodejs";
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ battleId: string }> },
+  { params }: { params: Promise<{ questionId: string }> },
 ) {
-  const { battleId } = await params;
   const profileId = getProfileIdFromRequest(request);
   if (!profileId) return profileUnauthorizedResponse();
 
-  try {
-    const body = (await request.json()) as {
-      questionId?: string;
-      selectedIndex?: number;
-    };
+  const { questionId } = await params;
 
-    if (!body.questionId || typeof body.selectedIndex !== "number") {
+  try {
+    const body = (await request.json()) as { selectedIndex?: unknown };
+    if (typeof body.selectedIndex !== "number") {
       return NextResponse.json(
         {
           error: {
@@ -33,28 +30,24 @@ export async function POST(
       );
     }
 
-    const result = answerBattle({
-      profileId,
-      battleId,
-      questionId: body.questionId,
-      selectedIndex: body.selectedIndex,
-    });
-
-    return NextResponse.json(result);
+    return NextResponse.json(
+      checkQuestion({
+        questionId,
+        selectedIndex: body.selectedIndex,
+      }),
+    );
   } catch (error) {
     const code = error instanceof Error ? error.message : "UNKNOWN_ERROR";
     const status =
-      code === "BATTLE_NOT_FOUND"
+      code === "QUESTION_NOT_FOUND"
         ? 404
         : code === "INVALID_ANSWER"
           ? 400
-          : 409;
+          : 500;
     const message =
-      code === "QUESTION_NOT_ACTIVE"
-        ? "这道题已经不能再提交了。"
-        : code === "INVALID_ANSWER"
-          ? "答案格式不正确。"
-          : "无法提交答案。";
+      code === "QUESTION_NOT_FOUND"
+        ? "没有找到这道题。"
+        : "无法校验答案。";
 
     return NextResponse.json({ error: { code, message } }, { status });
   }

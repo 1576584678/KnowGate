@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import { getRemediationPlan } from "@/lib/learning-report";
-import { getProfileIdFromRequest } from "@/lib/profile";
+import {
+  getProfileIdFromRequest,
+  profileUnauthorizedResponse,
+} from "@/lib/profile";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   const profileId = getProfileIdFromRequest(request);
+  if (!profileId) return profileUnauthorizedResponse();
+
   const nodeId = new URL(request.url).searchParams.get("nodeId");
 
   if (!nodeId) {

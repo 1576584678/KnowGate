@@ -1,13 +1,18 @@
 import { NextResponse } from "next/server";
 import { toPublicBattleState, type BattleMode } from "@knowgate/domain";
 import { createMilestoneBattle } from "@/lib/battle-store";
-import { getProfileIdFromRequest } from "@/lib/profile";
+import {
+  getProfileIdFromRequest,
+  profileUnauthorizedResponse,
+} from "@/lib/profile";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
     const profileId = getProfileIdFromRequest(request);
+    if (!profileId) return profileUnauthorizedResponse();
+
     const body = (await request.json()) as {
       milestoneId?: string;
       mode?: BattleMode;

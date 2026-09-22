@@ -11,9 +11,6 @@ import {
   milestones,
 } from "../src/content/math-grade4";
 
-const playerId = "e2e.p0.player";
-const uiPlayerId = "e2e.p0.browser";
-const integrityPlayerId = "e2e.p0.integrity";
 const adminEmail = "admin@knowgate.local";
 const adminPassword = "local-admin";
 const adminTotpSecret = "JBSWY3DPEHPK3PXP";
@@ -64,9 +61,8 @@ async function loginAdmin(request: APIRequestContext) {
   expect(response.status(), await response.text()).toBe(200);
 }
 
-function playerHeaders(json = false, profileId = playerId) {
+function playerHeaders(json = false) {
   return {
-    "x-knowgate-profile-id": profileId,
     ...(json ? { "Content-Type": "application/json" } : {}),
   };
 }
@@ -77,12 +73,12 @@ type BattleState = {
   currentQuestion: { id: string } | null;
 };
 
-async function resetPlayer(
-  request: APIRequestContext,
-  profileId = playerId,
-) {
+async function resetPlayer(request: APIRequestContext) {
+  const session = await request.post("/api/v1/profile/session");
+  expect(session.status(), await session.text()).toBe(200);
+
   const response = await request.delete("/api/v1/progress", {
-    headers: { "x-knowgate-profile-id": profileId },
+    headers: playerHeaders(),
   });
   expect(response.ok()).toBe(true);
 }
@@ -330,10 +326,10 @@ test.describe("P0 product flow", () => {
   test("rejects forged progress and out-of-order battles", async ({
     request,
   }) => {
-    await resetPlayer(request, integrityPlayerId);
+    await resetPlayer(request);
 
     const forged = await request.post("/api/v1/progress", {
-      headers: playerHeaders(true, integrityPlayerId),
+      headers: playerHeaders(true),
       data: {
         type: "chapter_completed",
         chapterId: chapters[0].id,
@@ -359,7 +355,7 @@ test.describe("P0 product flow", () => {
       const response = await request.post(
         `/api/v1/chapters/${chapter.id}/complete`,
         {
-          headers: playerHeaders(true, integrityPlayerId),
+          headers: playerHeaders(true),
           data: {
             answers,
             durationSec: chapter.estimatedMinutes * 60,
@@ -371,7 +367,7 @@ test.describe("P0 product flow", () => {
     }
 
     const battleResponse = await request.post("/api/v1/battles", {
-      headers: playerHeaders(true, integrityPlayerId),
+      headers: playerHeaders(true),
       data: {
         milestoneId: secondMilestone.id,
         mode: "learning",
@@ -387,14 +383,12 @@ test.describe("P0 product flow", () => {
   test("renders the ten-stage map, a chapter, and the content console", async ({
     page,
     context,
-    request,
   }) => {
-    await resetPlayer(request, uiPlayerId);
+    await resetPlayer(context.request);
     await loginAdmin(context.request);
-    await page.addInitScript((profileId) => {
-      window.localStorage.setItem("knowgate.profile.v1", profileId);
+    await page.addInitScript(() => {
       window.localStorage.removeItem("knowgate.progress.v1");
-    }, uiPlayerId);
+    });
 
     await page.goto("/");
     await expect(
@@ -451,11 +445,14 @@ test.describe("P0 product flow", () => {
     ).toBeVisible();
   });
 
-  test("keeps fraction comparison bars at equal height", async ({ page }) => {
-    await page.addInitScript((profileId) => {
-      window.localStorage.setItem("knowgate.profile.v1", profileId);
+  test("keeps fraction comparison bars at equal height", async ({
+    page,
+    context,
+  }) => {
+    await resetPlayer(context.request);
+    await page.addInitScript(() => {
       window.localStorage.removeItem("knowgate.progress.v1");
-    }, uiPlayerId);
+    });
 
     await page.goto("/chapters/chapter.fraction.equivalent");
     const continueButton = page.getByRole("button", { name: "继续" });

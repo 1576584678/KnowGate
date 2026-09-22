@@ -1,6 +1,33 @@
-import { publicQuestion, type ProgressSnapshot } from "@knowgate/domain";
+import {
+  publicContentQuestion,
+  publicQuestion,
+  type Chapter,
+  type ProgressSnapshot,
+  type PublicChapter,
+} from "@knowgate/domain";
 import { gradeWorld } from "@/content/math-grade4";
 import { buildRuntimeContentGraph } from "@/lib/runtime-content";
+
+function publicChapter(chapter: Chapter): PublicChapter {
+  return {
+    ...chapter,
+    steps: chapter.steps.map((step) => ({
+      ...step,
+      question: step.question
+        ? publicContentQuestion(step.question)
+        : undefined,
+    })),
+  };
+}
+
+export function getPublicRuntimeContentGraph() {
+  const graph = buildRuntimeContentGraph();
+  return {
+    ...graph,
+    chapters: graph.chapters.map(publicChapter),
+    questions: graph.questions.map(publicContentQuestion),
+  };
+}
 
 export function getSubjects() {
   const graph = buildRuntimeContentGraph();

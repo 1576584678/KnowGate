@@ -16,6 +16,7 @@ import { useContent } from "@/components/content-provider";
 import { FractionVisual } from "@/components/fraction-visual";
 import { useProgress } from "@/components/progress-provider";
 import { MasteryMeter, PageIntro, StatusPill } from "@/components/ui";
+import { profileFetch } from "@/lib/profile-client";
 import { trackLearningEvent } from "@/lib/tracking";
 
 export default function RemediationPage() {
@@ -26,6 +27,13 @@ export default function RemediationPage() {
   const milestone = getMilestone(params.milestoneId);
   const [exerciseIndex, setExerciseIndex] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [answerResult, setAnswerResult] = useState<{
+    correct: boolean;
+    correctIndex: number;
+    explanation: string;
+  } | null>(null);
+  const [checkingAnswer, setCheckingAnswer] = useState(false);
+  const [answerError, setAnswerError] = useState("");
   const trackedStart = useRef(false);
   const trackedCompletion = useRef(false);
 
@@ -54,15 +62,13 @@ export default function RemediationPage() {
       nodeId: question.nodeId,
       prompt: question.prompt,
       options: question.options,
-      answerIndex: question.answerIndex,
-      explanation: question.explanation,
       visual: question.visual,
     }));
   }, [milestone?.bossId, outcome]);
 
   const exercise = exercises[exerciseIndex];
-  const answered = selectedIndex !== null;
-  const correct = answered && selectedIndex === exercise?.answerIndex;
+  const answered = answerResult !== null;
+  const correct = answerResult?.correct === true;
   const milestoneChapterIds = milestone?.chapterIds ?? [];
   const mastery = calculateMasteryBreakdown({
     completedChapters: milestoneChapterIds.filter((chapterId) =>
@@ -72,6 +78,57 @@ export default function RemediationPage() {
     bossOutcome: outcome,
   });
   const currentNode = getNode(exercise?.nodeId);
+
+  async function submitAnswer(index: number) {
+    if (!exercise || answered || checkingAnswer) return;
+
+    setSelectedIndex(index);
+    setCheckingAnswer(true);
+    setAnswerError("");
+
+    try {
+      const response = await profileFetch(
+        `/api/v1/questions/${encodeURIComponent(exercise.id)}/check`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ selectedIndex: index }),
+        },
+      );
+      const payload = (await response.json()) as {
+        correct?: unknown;
+        correctIndex?: unknown;
+        explanation?: unknown;
+        error?: { message?: unknown };
+      };
+
+      if (
+        !response.ok ||
+        typeof payload.correct !== "boolean" ||
+        typeof payload.correctIndex !== "number" ||
+        typeof payload.explanation !== "string"
+      ) {
+        throw new Error(
+          typeof payload.error?.message === "string"
+            ? payload.error.message
+            : "答案校验失败，请重试。",
+        );
+      }
+
+      setAnswerResult({
+        correct: payload.correct,
+        correctIndex: payload.correctIndex,
+        explanation: payload.explanation,
+      });
+    } catch (caught) {
+      setSelectedIndex(null);
+      setAnswerError(
+        caught instanceof Error ? caught.message : "答案校验失败，请重试。",
+      );
+    } finally {
+      setCheckingAnswer(false);
+    }
+  }
 
   useEffect(() => {
     if (!milestone || trackedStart.current) return;
@@ -161,7 +218,7 @@ export default function RemediationPage() {
               <div className="answer-grid">
                 {exercise.options.map((option, index) => {
                   let result: "correct" | "wrong" | undefined;
-                  if (answered && index === exercise.answerIndex) {
+                  if (answered && index === answerResult?.correctIndex) {
                     result = "correct";
                   } else if (answered && index === selectedIndex) {
                     result = "wrong";
@@ -170,9 +227,9 @@ export default function RemediationPage() {
                     <button
                       className="answer-option"
                       data-result={result}
-                      disabled={answered}
+                      disabled={answered || checkingAnswer}
                       key={`${exercise.id}-${option}`}
-                      onClick={() => setSelectedIndex(index)}
+                      onClick={() => void submitAnswer(index)}
                       type="button"
                     >
                       <span className="answer-option__key">
@@ -197,7 +254,17 @@ export default function RemediationPage() {
                   )}
                   <div>
                     <strong>{correct ? "这一步掌握了" : "再看一次提示"}</strong>
-                    <p>{exercise.explanation}</p>
+                    <p>{answerResult.explanation}</p>
+                  </div>
+                </div>
+              ) : null}
+
+              {answerError ? (
+                <div className="feedback" data-tone="error" role="alert">
+                  <CircleX size={22} aria-hidden="true" />
+                  <div>
+                    <strong>答案未提交</strong>
+                    <p>{answerError}</p>
                   </div>
                 </div>
               ) : null}
@@ -206,7 +273,11 @@ export default function RemediationPage() {
                 {answered && !correct ? (
                   <button
                     className="button button--secondary"
-                    onClick={() => setSelectedIndex(null)}
+                    onClick={() => {
+                      setAnswerResult(null);
+                      setSelectedIndex(null);
+                      setAnswerError("");
+                    }}
                     type="button"
                   >
                     <RotateCcw size={18} aria-hidden="true" />
@@ -219,7 +290,9 @@ export default function RemediationPage() {
                     onClick={() => {
                       if (exerciseIndex < exercises.length - 1) {
                         setExerciseIndex((current) => current + 1);
+                        setAnswerResult(null);
                         setSelectedIndex(null);
+                        setAnswerError("");
                       }
                     }}
                     type="button"

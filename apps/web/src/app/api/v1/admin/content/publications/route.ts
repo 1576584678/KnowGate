@@ -35,13 +35,20 @@ export async function POST(request: Request) {
 
   try {
     const body = (await request.json()) as {
-      action?: "activate" | "rollback" | "retire";
+      action?: unknown;
       snapshotId?: string;
       rolloutPercent?: number;
       note?: string;
     };
 
-    if (!body.snapshotId || !body.action) {
+    const action =
+      body.action === "activate" ||
+      body.action === "rollback" ||
+      body.action === "retire"
+        ? body.action
+        : null;
+
+    if (!body.snapshotId || !action) {
       return NextResponse.json(
         {
           error: {
@@ -55,7 +62,7 @@ export async function POST(request: Request) {
 
     const operatorId = getAdminOperatorId(request);
     const snapshot =
-      body.action === "retire"
+      action === "retire"
         ? retireContentSnapshot(
             {
               snapshotId: body.snapshotId,
@@ -70,7 +77,7 @@ export async function POST(request: Request) {
               operatorId,
               rolloutPercent: body.rolloutPercent,
               note: body.note,
-              action: body.action === "rollback" ? "rollback" : "activated",
+              action: action === "rollback" ? "rollback" : "activated",
             },
             getPersistence(),
           );

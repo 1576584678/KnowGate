@@ -28,7 +28,7 @@ import { useContent } from "@/components/content-provider";
 import { FractionVisual } from "@/components/fraction-visual";
 import { useProgress } from "@/components/progress-provider";
 import { MasteryMeter, StatusPill } from "@/components/ui";
-import { profileHeaders } from "@/lib/profile";
+import { profileFetch } from "@/lib/profile-client";
 
 export default function BattlePage() {
   const params = useParams<{ battleId: string }>();
@@ -52,9 +52,7 @@ export default function BattlePage() {
 
     async function loadBattle() {
       try {
-        const response = await fetch(`/api/v1/battles/${params.battleId}`, {
-          headers: profileHeaders(),
-        });
+        const response = await profileFetch(`/api/v1/battles/${params.battleId}`);
         const payload = await response.json();
         if (!response.ok) {
           throw new Error(payload.error?.message ?? "无法读取战斗。");
@@ -84,14 +82,17 @@ export default function BattlePage() {
       setError("");
 
       try {
-        const response = await fetch(`/api/v1/battles/${battle.id}/answers`, {
-          method: "POST",
-          headers: profileHeaders({ "Content-Type": "application/json" }),
-          body: JSON.stringify({
-            questionId: current.id,
-            selectedIndex: index,
-          }),
-        });
+        const response = await profileFetch(
+          `/api/v1/battles/${battle.id}/answers`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              questionId: current.id,
+              selectedIndex: index,
+            }),
+          },
+        );
         const payload = (await response.json()) as
           | ResolveAnswerResult
           | { error?: { message?: string } };

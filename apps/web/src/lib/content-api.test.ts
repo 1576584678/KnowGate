@@ -33,5 +33,6 @@ describe("content API", () => {
     expect(milestone.boss?.id).toBe("boss.math.fraction_warden");
     expect(question).toBeDefined();
     expect(Object.hasOwn(question!, "answerIndex")).toBe(false);
+    expect(Object.hasOwn(question!, "explanation")).toBe(false);
   });
 });

@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { getGradeWorld } from "@/lib/content-api";
 import { getPersistence } from "@/lib/persistence";
-import { getProfileIdFromRequest } from "@/lib/profile";
+import {
+  getProfileIdFromRequest,
+  profileUnauthorizedResponse,
+} from "@/lib/profile";
 
 export const runtime = "nodejs";
 
@@ -11,6 +14,7 @@ export async function GET(
 ) {
   const { gradeWorldId } = await params;
   const profileId = getProfileIdFromRequest(request);
+  if (!profileId) return profileUnauthorizedResponse();
 
   try {
     const progress = getPersistence().getProgress(profileId);

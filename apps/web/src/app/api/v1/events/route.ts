@@ -4,7 +4,10 @@ import {
   type LearningEventType,
 } from "@knowgate/domain";
 import { recordLearningEvent } from "@/lib/chapter-store";
-import { getProfileIdFromRequest } from "@/lib/profile";
+import {
+  getProfileIdFromRequest,
+  profileUnauthorizedResponse,
+} from "@/lib/profile";
 
 export const runtime = "nodejs";
 
@@ -26,12 +29,27 @@ function isTrackableEvent(value: string): value is LearningEventType {
 
 export async function POST(request: Request) {
   const profileId = getProfileIdFromRequest(request);
-  const body = (await request.json()) as {
+  if (!profileId) return profileUnauthorizedResponse();
+
+  let body: {
     eventType?: unknown;
     entityType?: unknown;
     entityId?: unknown;
     payload?: unknown;
   };
+  try {
+    body = (await request.json()) as typeof body;
+  } catch {
+    return NextResponse.json(
+      {
+        error: {
+          code: "INVALID_EVENT",
+          message: "事件格式不正确。",
+        },
+      },
+      { status: 400 },
+    );
+  }
 
   if (
     typeof body.eventType !== "string" ||

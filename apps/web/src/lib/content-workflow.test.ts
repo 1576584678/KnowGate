@@ -240,6 +240,30 @@ describe("content review workflow", () => {
     ).toThrow("INVALID_REVIEW_TRANSITION");
   });
 
+  it("only lets the author submit their own draft", () => {
+    const persistence = createStore();
+    const draft = createContentDraft(
+      {
+        kind: "question_template",
+        title: "Owned question",
+        payload: { prompt: "Initial" },
+        authorId: "author.1",
+      },
+      persistence,
+    );
+
+    expect(() =>
+      reviewContentDraft(
+        {
+          draftId: draft.id,
+          action: "submit",
+          operatorId: "author.2",
+        },
+        persistence,
+      ),
+    ).toThrow("DRAFT_AUTHOR_REQUIRED");
+  });
+
   it("preserves question quality metadata when publishing", () => {
     const persistence = createStore();
     const question = {

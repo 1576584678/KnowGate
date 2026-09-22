@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   isValidProfileId,
   getProfileIdFromRequest,
+  profileUnauthorizedResponse,
 } from "@/lib/profile";
 import { getWeeklyStudentReport } from "@/lib/weekly-report";
 
@@ -26,6 +27,8 @@ export async function GET(
   }
 
   const profileId = getProfileIdFromRequest(request);
+  if (!profileId) return profileUnauthorizedResponse();
+
   if (studentId !== profileId) {
     return NextResponse.json(
       {

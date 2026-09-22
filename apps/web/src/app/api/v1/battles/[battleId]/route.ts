@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { toPublicBattleState } from "@knowgate/domain";
 import { getBattle } from "@/lib/battle-store";
-import { getProfileIdFromRequest } from "@/lib/profile";
+import {
+  getProfileIdFromRequest,
+  profileUnauthorizedResponse,
+} from "@/lib/profile";
 
 export const runtime = "nodejs";
 
@@ -11,6 +14,8 @@ export async function GET(
 ) {
   const { battleId } = await params;
   const profileId = getProfileIdFromRequest(request);
+  if (!profileId) return profileUnauthorizedResponse();
+
   const session = getBattle(profileId, battleId);
 
   if (!session) {

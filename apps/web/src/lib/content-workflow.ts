@@ -572,6 +572,9 @@ export function reviewContentDraft(
   const draft = persistence.getContentDraft(input.draftId);
   if (!draft) throw new Error("DRAFT_NOT_FOUND");
   assertTransition(draft, input.action);
+  if (input.action === "submit" && draft.authorId !== input.operatorId) {
+    throw new Error("DRAFT_AUTHOR_REQUIRED");
+  }
 
   if (input.action === "publish") {
     const publication = buildDraftPublication(draft, persistence);

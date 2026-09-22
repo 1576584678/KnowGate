@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { abandonBattle } from "@/lib/battle-store";
-import { getProfileIdFromRequest } from "@/lib/profile";
+import {
+  getProfileIdFromRequest,
+  profileUnauthorizedResponse,
+} from "@/lib/profile";
 
 export const runtime = "nodejs";
 
@@ -10,6 +13,7 @@ export async function POST(
 ) {
   const { battleId } = await params;
   const profileId = getProfileIdFromRequest(request);
+  if (!profileId) return profileUnauthorizedResponse();
 
   try {
     return NextResponse.json(abandonBattle(profileId, battleId));

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -21,6 +21,7 @@ import { useContent } from "@/components/content-provider";
 import { FractionVisual } from "@/components/fraction-visual";
 import { useProgress } from "@/components/progress-provider";
 import { StatusPill } from "@/components/ui";
+import { profileFetch } from "@/lib/profile-client";
 import { trackLearningEvent } from "@/lib/tracking";
 
 const phaseMeta = {
@@ -42,7 +43,13 @@ export default function ChapterPage() {
   const answersStorageKey = `${storageKey}.answers`;
   const [stepIndex, setStepIndex] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [answered, setAnswered] = useState(false);
+  const [answerResult, setAnswerResult] = useState<{
+    correct: boolean;
+    correctIndex: number;
+    explanation: string;
+  } | null>(null);
+  const [checkingAnswer, setCheckingAnswer] = useState(false);
+  const [answerError, setAnswerError] = useState<string | null>(null);
   const [restored, setRestored] = useState(false);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isCompleting, setIsCompleting] = useState(false);
@@ -125,15 +132,8 @@ export default function ChapterPage() {
   const progress = chapter
     ? Math.round(((stepIndex + 1) / chapter.steps.length) * 100)
     : 0;
-  const correct = useMemo(
-    () =>
-      Boolean(
-        step?.question &&
-          answered &&
-          selectedIndex === step.question.answerIndex,
-      ),
-    [answered, selectedIndex, step],
-  );
+  const answered = answerResult !== null;
+  const correct = answerResult?.correct === true;
 
   if (!chapter || !step || !phase || !PhaseIcon) {
     return (
@@ -149,12 +149,80 @@ export default function ChapterPage() {
     );
   }
 
+  async function submitStepAnswer(index: number) {
+    const question = step?.question;
+    if (!chapter || !question || answered || checkingAnswer) return;
+
+    setSelectedIndex(index);
+    setCheckingAnswer(true);
+    setAnswerError(null);
+
+    try {
+      const response = await profileFetch(
+        `/api/v1/questions/${encodeURIComponent(question.id)}/check`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ selectedIndex: index }),
+        },
+      );
+      const payload = (await response.json()) as {
+        correct?: unknown;
+        correctIndex?: unknown;
+        explanation?: unknown;
+        error?: { message?: unknown };
+      };
+
+      if (
+        !response.ok ||
+        typeof payload.correct !== "boolean" ||
+        typeof payload.correctIndex !== "number" ||
+        typeof payload.explanation !== "string"
+      ) {
+        throw new Error(
+          typeof payload.error?.message === "string"
+            ? payload.error.message
+            : "答案校验失败，请重试。",
+        );
+      }
+
+      setAnswerResult({
+        correct: payload.correct,
+        correctIndex: payload.correctIndex,
+        explanation: payload.explanation,
+      });
+      setAnswers((current) => ({
+        ...current,
+        [question.id]: String.fromCharCode(65 + index),
+      }));
+      trackLearningEvent({
+        eventType: "chapter_answer_submitted",
+        entityType: "chapter",
+        entityId: chapter.id,
+        payload: {
+          questionId: question.id,
+          nodeId: question.nodeId,
+          selectedIndex: index,
+          correct: payload.correct,
+        },
+      });
+    } catch (caught) {
+      setSelectedIndex(null);
+      setAnswerError(
+        caught instanceof Error ? caught.message : "答案校验失败，请重试。",
+      );
+    } finally {
+      setCheckingAnswer(false);
+    }
+  }
+
   async function handlePrimaryAction() {
     if (!chapter || !step) return;
-    if (step.question && !answered) return;
+    if (step.question && (!answered || checkingAnswer)) return;
     if (step.question && !correct) {
-      setAnswered(false);
+      setAnswerResult(null);
       setSelectedIndex(null);
+      setAnswerError(null);
       return;
     }
 
@@ -195,7 +263,7 @@ export default function ChapterPage() {
 
       if (!outcome.result.passed) {
         setCompletionError("答题记录未通过校验，请再检查一次。");
-        setAnswered(false);
+        setAnswerResult(null);
         setSelectedIndex(null);
         return;
       }
@@ -205,8 +273,9 @@ export default function ChapterPage() {
     }
 
     setStepIndex((current) => current + 1);
-    setAnswered(false);
+    setAnswerResult(null);
     setSelectedIndex(null);
+    setAnswerError(null);
   }
 
   return (
@@ -290,7 +359,7 @@ export default function ChapterPage() {
               <p className="lesson-question">{step.question.prompt}</p>
               {step.question.options.map((option, index) => {
                 let result: "correct" | "wrong" | undefined;
-                if (answered && index === step.question?.answerIndex) {
+                if (answered && index === answerResult?.correctIndex) {
                   result = "correct";
                 } else if (answered && index === selectedIndex) {
                   result = "wrong";
@@ -301,30 +370,9 @@ export default function ChapterPage() {
                     className="answer-option"
                     data-result={result}
                     data-selected={selectedIndex === index}
-                    disabled={answered}
+                    disabled={answered || checkingAnswer}
                     key={`${step.id}-${option}`}
-                    onClick={() => {
-                      const question = step.question;
-                      if (!question) return;
-                      const isCorrect = index === question.answerIndex;
-                      setSelectedIndex(index);
-                      setAnswered(true);
-                      setAnswers((current) => ({
-                        ...current,
-                        [question.id]: String.fromCharCode(65 + index),
-                      }));
-                      trackLearningEvent({
-                        eventType: "chapter_answer_submitted",
-                        entityType: "chapter",
-                        entityId: chapter.id,
-                        payload: {
-                          questionId: question.id,
-                          nodeId: question.nodeId,
-                          selectedIndex: index,
-                          correct: isCorrect,
-                        },
-                      });
-                    }}
+                    onClick={() => void submitStepAnswer(index)}
                     type="button"
                   >
                     <span className="answer-option__key">
@@ -337,7 +385,7 @@ export default function ChapterPage() {
             </div>
           ) : null}
 
-          {answered && step.question ? (
+          {answerResult && step.question ? (
             <div
               className="feedback"
               data-tone={correct ? "success" : "error"}
@@ -350,7 +398,17 @@ export default function ChapterPage() {
               )}
               <div>
                 <strong>{correct ? "答对了" : "再想一步"}</strong>
-                <p>{step.question.explanation}</p>
+                <p>{answerResult.explanation}</p>
+              </div>
+            </div>
+          ) : null}
+
+          {answerError ? (
+            <div className="feedback" data-tone="error" role="alert">
+              <CircleX size={21} aria-hidden="true" />
+              <div>
+                <strong>答案未提交</strong>
+                <p>{answerError}</p>
               </div>
             </div>
           ) : null}
@@ -369,7 +427,9 @@ export default function ChapterPage() {
             <button
               className="button button--primary"
               disabled={
-                isCompleting || Boolean(step.question && !answered)
+                isCompleting ||
+                checkingAnswer ||
+                Boolean(step.question && !answered)
               }
               onClick={handlePrimaryAction}
               type="button"
@@ -402,7 +462,9 @@ export default function ChapterPage() {
             </button>
             <span className="lesson-actions__hint">
               {step.question && !answered
-                ? "选择答案后才能继续"
+                ? checkingAnswer
+                  ? "正在校验答案"
+                  : "选择答案后才能继续"
                 : isCompleting
                   ? "正在记录本章学习证据"
                   : "章节进度会自动保存"}

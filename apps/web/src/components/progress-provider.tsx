@@ -14,7 +14,7 @@ import type {
   ChapterCompletionResult,
   ProgressSnapshot,
 } from "@knowgate/domain";
-import { profileHeaders } from "@/lib/profile";
+import { profileFetch } from "@/lib/profile-client";
 
 export type ChapterCompletionOutcome =
   | {
@@ -75,9 +75,8 @@ async function requestServerProgress(
   method: "GET" | "DELETE",
 ): Promise<ProgressSnapshot | null> {
   try {
-    const response = await fetch("/api/v1/progress", {
+    const response = await profileFetch("/api/v1/progress", {
       method,
-      headers: profileHeaders(),
     });
     if (!response.ok) return null;
     const payload = (await response.json()) as { progress?: unknown };
@@ -96,11 +95,11 @@ async function requestChapterCompletion(input: {
   let response: Response;
 
   try {
-    response = await fetch(
+    response = await profileFetch(
       `/api/v1/chapters/${encodeURIComponent(input.chapterId)}/complete`,
       {
         method: "POST",
-        headers: profileHeaders({ "Content-Type": "application/json" }),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           answers: input.answers,
           durationSec: input.durationSec,

@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import { getNodeMasteryReport } from "@/lib/learning-report";
-import { getProfileIdFromRequest } from "@/lib/profile";
+import {
+  getProfileIdFromRequest,
+  profileUnauthorizedResponse,
+} from "@/lib/profile";
 
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   const profileId = getProfileIdFromRequest(request);
+  if (!profileId) return profileUnauthorizedResponse();
+
   const searchParams = new URL(request.url).searchParams;
   const subject = searchParams.get("subject");
   const grade = searchParams.get("grade");

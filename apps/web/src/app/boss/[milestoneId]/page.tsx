@@ -18,7 +18,7 @@ import type { BattleMode } from "@knowgate/domain";
 import { useContent } from "@/components/content-provider";
 import { useProgress } from "@/components/progress-provider";
 import { StatusPill } from "@/components/ui";
-import { profileHeaders } from "@/lib/profile";
+import { profileFetch } from "@/lib/profile-client";
 import { defaultSettings, readSettings, type LearningSettings } from "@/lib/settings";
 
 export default function BossBriefPage() {
@@ -67,9 +67,9 @@ export default function BossBriefPage() {
     setError("");
 
     try {
-      const response = await fetch("/api/v1/battles", {
+      const response = await profileFetch("/api/v1/battles", {
         method: "POST",
-        headers: profileHeaders({ "Content-Type": "application/json" }),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           milestoneId: milestone.id,
           mode,

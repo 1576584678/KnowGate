@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import type { ChapterCompletionAnswer } from "@knowgate/domain";
 import { completeChapter } from "@/lib/chapter-store";
 import { getPersistence } from "@/lib/persistence";
-import { getProfileIdFromRequest } from "@/lib/profile";
+import {
+  getProfileIdFromRequest,
+  profileUnauthorizedResponse,
+} from "@/lib/profile";
 
 export const runtime = "nodejs";
 
@@ -22,6 +25,7 @@ export async function POST(
 ) {
   const { chapterId } = await params;
   const profileId = getProfileIdFromRequest(request);
+  if (!profileId) return profileUnauthorizedResponse();
 
   try {
     const body = (await request.json()) as {

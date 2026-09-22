@@ -10,50 +10,61 @@ import {
 } from "react";
 import type {
   Boss,
-  Chapter,
-  ContentQuestion,
   KnowledgeNode,
   Milestone,
+  PublicChapter,
+  PublicContentQuestion,
 } from "@knowgate/domain";
-import {
-  bossQuestions as baseBossQuestions,
-  bosses as baseBosses,
-  chapters as baseChapters,
-  gradeWorld as baseGradeWorld,
-  knowledgeNodes as baseKnowledgeNodes,
-  milestones as baseMilestones,
-} from "@/content/math-grade4";
+import { profileFetch } from "@/lib/profile-client";
 
 type RuntimeGraph = {
   contentVersion: string;
   nodes: KnowledgeNode[];
-  chapters: Chapter[];
+  chapters: PublicChapter[];
   milestones: Milestone[];
   bosses: Boss[];
-  questions: ContentQuestion[];
+  questions: PublicContentQuestion[];
+};
+
+type GradeWorldSummary = {
+  id: string;
+  subjectId: string;
+  grade: number;
+  name: string;
+  contentVersion: string;
+  totalStages: number;
 };
 
 type ContentContextValue = {
   ready: boolean;
-  gradeWorld: typeof baseGradeWorld;
-  chapters: Chapter[];
+  gradeWorld: GradeWorldSummary;
+  chapters: PublicChapter[];
   milestones: Milestone[];
   bosses: Boss[];
   knowledgeNodes: KnowledgeNode[];
-  bossQuestions: ContentQuestion[];
-  getChapter: (chapterId: string) => Chapter | undefined;
+  bossQuestions: PublicContentQuestion[];
+  getChapter: (chapterId: string) => PublicChapter | undefined;
   getMilestone: (milestoneId: string) => Milestone | undefined;
   getBoss: (bossId: string) => Boss | undefined;
   getNode: (nodeId: string) => KnowledgeNode | undefined;
 };
 
-const staticGraph: RuntimeGraph = {
-  contentVersion: baseGradeWorld.contentVersion,
-  nodes: baseKnowledgeNodes,
-  chapters: baseChapters,
-  milestones: baseMilestones,
-  bosses: baseBosses,
-  questions: baseBossQuestions,
+const fallbackGradeWorld: GradeWorldSummary = {
+  id: "math.g4",
+  subjectId: "math",
+  grade: 4,
+  name: "四年级 · 分数群岛",
+  contentVersion: "2026.09.20.6",
+  totalStages: 10,
+};
+
+const emptyGraph: RuntimeGraph = {
+  contentVersion: fallbackGradeWorld.contentVersion,
+  nodes: [],
+  chapters: [],
+  milestones: [],
+  bosses: [],
+  questions: [],
 };
 
 const ContentContext = createContext<ContentContextValue | null>(null);
@@ -72,23 +83,26 @@ function isRuntimeGraph(value: unknown): value is RuntimeGraph {
 }
 
 export function ContentProvider({ children }: { children: ReactNode }) {
-  const [graph, setGraph] = useState<RuntimeGraph>(staticGraph);
+  const [graph, setGraph] = useState<RuntimeGraph>(emptyGraph);
   const [ready, setReady] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
 
     async function hydrateFromServer() {
       try {
-        const response = await fetch("/api/v1/content");
-        if (!response.ok) return;
+        const response = await profileFetch("/api/v1/content");
+        if (!response.ok) throw new Error("CONTENT_LOAD_FAILED");
         const payload = (await response.json()) as { content?: unknown };
         if (!cancelled && isRuntimeGraph(payload.content)) {
           setGraph(payload.content);
           setReady(true);
         }
       } catch {
-        // Static seed content stays available when the content API is offline.
+        if (!cancelled) {
+          setError("课程内容加载失败，请刷新页面后重试。");
+        }
       }
     }
 
@@ -110,7 +124,10 @@ export function ContentProvider({ children }: { children: ReactNode }) {
 
     return {
       ready,
-      gradeWorld: { ...baseGradeWorld, contentVersion: graph.contentVersion },
+      gradeWorld: {
+        ...fallbackGradeWorld,
+        contentVersion: graph.contentVersion,
+      },
       chapters: graph.chapters,
       milestones: graph.milestones,
       bosses: graph.bosses,
@@ -122,6 +139,16 @@ export function ContentProvider({ children }: { children: ReactNode }) {
       getNode: (nodeId) => nodesById.get(nodeId),
     };
   }, [graph, ready]);
+
+  if (!ready) {
+    return (
+      <div className="page-shell">
+        <div className="empty-state">
+          <h1>{error || "正在加载课程内容"}</h1>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <ContentContext.Provider value={value}>{children}</ContentContext.Provider>
