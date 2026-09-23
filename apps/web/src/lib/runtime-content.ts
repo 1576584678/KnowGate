@@ -135,6 +135,31 @@ export function contentRolloutBucket(profileId: string) {
   return Math.abs(hash) % 100;
 }
 
+type RuntimeGraphCacheEntry = {
+  key: string;
+  graph: ContentGraph;
+};
+
+// Rebuilding the whole graph copies well over a thousand entities, so keep
+// the last result per store and reuse it until publications change.
+const runtimeGraphCache = new WeakMap<
+  PersistenceStore,
+  RuntimeGraphCacheEntry
+>();
+
+function persistenceContentKey(persistence: PersistenceStore) {
+  const snapshots = persistence.getContentSnapshots();
+  const current = snapshots.at(-1);
+  return [
+    fullMathContentGraph.contentVersion,
+    snapshots.length,
+    current?.id ?? "-",
+    current?.status ?? "-",
+    current?.rolloutPercent ?? "-",
+    persistence.getPublishedContent().length,
+  ].join("|");
+}
+
 function selectActiveSnapshot(snapshots: ContentSnapshot[]) {
   if (snapshots.length === 0) return undefined;
   return snapshots.at(-1);
@@ -210,7 +235,20 @@ export function buildRuntimeContentGraph(
   persistence: PersistenceStore = getPersistence(),
   options: { profileId?: string; snapshotId?: string } = {},
 ): ContentGraph {
-  return resolveRuntimeContent(persistence, options).graph;
+  // Pinned/rollout lookups depend on the caller, so they stay uncached.
+  if (options.profileId || options.snapshotId) {
+    return resolveRuntimeContent(persistence, options).graph;
+  }
+
+  const key = persistenceContentKey(persistence);
+  const cached = runtimeGraphCache.get(persistence);
+  if (cached && cached.key === key) {
+    return cached.graph;
+  }
+
+  const graph = resolveRuntimeContent(persistence, options).graph;
+  runtimeGraphCache.set(persistence, { key, graph });
+  return graph;
 }
 
 export function getRuntimeGradeWorld(

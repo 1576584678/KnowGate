@@ -6,6 +6,7 @@ import {
   type PublicChapter,
 } from "@knowgate/domain";
 import { mathGradeWorlds } from "@/content/math-curriculum";
+import type { ContentGraph } from "@/lib/content-validation";
 import { buildRuntimeContentGraph } from "@/lib/runtime-content";
 
 function publicChapter(chapter: Chapter): PublicChapter {
@@ -20,8 +21,7 @@ function publicChapter(chapter: Chapter): PublicChapter {
   };
 }
 
-export function getPublicRuntimeContentGraph() {
-  const graph = buildRuntimeContentGraph();
+function buildPublicRuntimeContentGraph(graph: ContentGraph) {
   return {
     ...graph,
     worlds: mathGradeWorlds.map((world) => ({
@@ -31,6 +31,27 @@ export function getPublicRuntimeContentGraph() {
     chapters: graph.chapters.map(publicChapter),
     questions: graph.questions.map(publicContentQuestion),
   };
+}
+
+type PublicRuntimeContentGraph = ReturnType<
+  typeof buildPublicRuntimeContentGraph
+>;
+
+// Mapping the graph into its public shape touches every entity, so reuse the
+// previous result while the underlying graph object is unchanged.
+let publicRuntimeContentCache:
+  | { graph: ContentGraph; payload: PublicRuntimeContentGraph }
+  | undefined;
+
+export function getPublicRuntimeContentGraph(): PublicRuntimeContentGraph {
+  const graph = buildRuntimeContentGraph();
+  if (publicRuntimeContentCache?.graph === graph) {
+    return publicRuntimeContentCache.payload;
+  }
+
+  const payload = buildPublicRuntimeContentGraph(graph);
+  publicRuntimeContentCache = { graph, payload };
+  return payload;
 }
 
 export function getSubjects() {

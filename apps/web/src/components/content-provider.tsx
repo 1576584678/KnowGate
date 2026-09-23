@@ -144,6 +144,28 @@ function sortGradeWorlds(worlds: GradeWorldSummary[]) {
   );
 }
 
+const contentCacheKey = "knowgate.contentCache.v1";
+
+function readCachedGraph(): RuntimeGraph | undefined {
+  if (typeof window === "undefined") return undefined;
+  try {
+    const raw = window.localStorage.getItem(contentCacheKey);
+    if (!raw) return undefined;
+    const parsed: unknown = JSON.parse(raw);
+    return isRuntimeGraph(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeCachedGraph(graph: RuntimeGraph) {
+  try {
+    window.localStorage.setItem(contentCacheKey, JSON.stringify(graph));
+  } catch {
+    // Storage may be unavailable or full; the server response still applies.
+  }
+}
+
 export function ContentProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [graph, setGraph] = useState<RuntimeGraph>(emptyGraph);
@@ -155,18 +177,32 @@ export function ContentProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
+    const cached = readCachedGraph();
+
+    // Render from the previous visit immediately, then revalidate quietly.
+    if (cached) {
+      setGraph(cached);
+      setReady(true);
+    }
 
     async function hydrateFromServer() {
       try {
-        const response = await profileFetch("/api/v1/content");
+        const response = await profileFetch("/api/v1/content", {
+          cache: "default",
+        });
         if (!response.ok) throw new Error("CONTENT_LOAD_FAILED");
         const payload = (await response.json()) as { content?: unknown };
-        if (!cancelled && isRuntimeGraph(payload.content)) {
+        if (cancelled) return;
+        if (isRuntimeGraph(payload.content)) {
           setGraph(payload.content);
           setReady(true);
+          setError("");
+          writeCachedGraph(payload.content);
+        } else if (!cached) {
+          setError("课程内容加载失败，请刷新页面后重试。");
         }
       } catch {
-        if (!cancelled) {
+        if (!cancelled && !cached) {
           setError("课程内容加载失败，请刷新页面后重试。");
         }
       }
