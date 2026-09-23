@@ -11,7 +11,7 @@ import { generateBossQuestionSet } from "@/lib/question-generator";
 
 export const gradeWorld = {
   id: "math.g4",
-  contentVersion: "2026.09.20.6",
+  contentVersion: "2026.09.23.2",
   subjectId: "math",
   grade: 4,
   name: "四年级 · 分数群岛",
@@ -287,7 +287,7 @@ const foundationChapters: Chapter[] = [
           id: "item.fraction.units.practice",
           nodeId: "math.fractions_decimals.fraction_meaning",
           kind: "apply",
-          prompt: "分子都是 1 时，下面哪个分数最大？",
+          prompt: "分子都是 1 时，1/10、1/6、1/3 中哪个分数最大？",
           options: ["1/10", "1/6", "1/3"],
           answerIndex: 2,
           explanation: "分子都为 1 时，分母越小，分数越大。",
@@ -372,7 +372,7 @@ const foundationChapters: Chapter[] = [
           id: "item.fraction.equivalent.practice",
           nodeId: "math.fractions_decimals.fraction_meaning",
           kind: "apply",
-          prompt: "下面哪个分数与 1/4 相等？",
+          prompt: "在 2/4、2/8、4/4 中，与 1/4 相等的分数是哪一个？",
           options: ["2/4", "2/8", "4/4"],
           answerIndex: 1,
           explanation: "1/4 的分子分母同时乘 2，得到 2/8。",
@@ -504,7 +504,7 @@ const additionalChapters: Chapter[] = [
     conceptBody: "1/2 的分子和分母都乘 3，得到 3/6，覆盖的区域仍然一样大。",
     questions: [
       q("apply", "1/3 的分子和分母同时乘 2，得到哪个分数？", ["2/6", "3/6", "2/3"], 0, "1×2=2，3×2=6，所以得到 2/6。"),
-      q("apply", "下面哪个分数与 2/5 相等？", ["6/15", "5/10", "2/10"], 0, "2/5 的分子和分母都乘 3，得到 6/15。"),
+      q("apply", "在 6/15、5/10、2/10 中，与 2/5 相等的分数是哪一个？", ["6/15", "5/10", "2/10"], 0, "2/5 的分子和分母都乘 3，得到 6/15。"),
       q("transfer", "把一个分数的分子和分母同时乘 4，分数大小怎样变化？", ["不变", "变成 4 倍", "变成 1/4"], 0, "同时乘同一个非零数，表示的大小不变。", 2),
     ],
   }),
@@ -575,7 +575,7 @@ const additionalChapters: Chapter[] = [
     conceptTitle: "小数点右边第一位是十分位",
     conceptBody: "小数点后第一位表示十分之几，第二位表示百分之几。",
     questions: [
-      q("identify", "0.7 表示下面哪个分数？", ["7/10", "7/100", "1/7"], 0, "十分位上的 7 表示 7 个 1/10。"),
+      q("identify", "0.7 化成最简分数后是哪一个？", ["7/10", "7/100", "1/7"], 0, "十分位上的 7 表示 7 个 1/10。"),
       q("apply", "25/100 写成小数是多少？", ["0.25", "2.5", "0.025"], 0, "百分之二十五写成小数是 0.25。"),
       q("transfer", "3.06 中的 6 在什么数位上？", ["百分位", "十分位", "个位"], 0, "小数点后第二位是百分位。", 2),
     ],
@@ -594,7 +594,7 @@ const additionalChapters: Chapter[] = [
     conceptBody: "比较小数先看整数部分，再看十分位、百分位，某一位没有数时补 0。",
     questions: [
       q("judge", "0.8 和 8/10 表示同样的大小。", ["正确", "错误"], 0, "0.8 就是 8 个 1/10。"),
-      q("apply", "下面哪个数最大？", ["0.6", "0.58", "0.5"], 0, "0.60 的十分位是 6，大于 0.58 和 0.50。"),
+      q("apply", "0.6、0.58、0.5 中，最大的数是哪一个？", ["0.6", "0.58", "0.5"], 0, "0.60 的十分位是 6，大于 0.58 和 0.50。"),
       q("transfer", "把 1/4 写成小数是多少？", ["0.25", "0.4", "1.4"], 0, "1/4 等于 25/100，所以是 0.25。", 2),
     ],
   }),
@@ -683,7 +683,7 @@ const additionalChapters: Chapter[] = [
     conceptTitle: "先看单位，再读数据",
     conceptBody: "读图时先确认一格代表多少，再比较各直条的高度。",
     questions: [
-      q("identify", "条形统计图中直条越高通常表示什么？", ["数量越多", "名称越长", "时间越短"], 0, "直条高度表示对应类别的数量。"),
+      q("identify", "在阅读量条形统计图中，某天直条明显更高，说明什么？", ["这一天阅读量更多", "分类名称更长", "记录时间更短"], 0, "直条高度表示对应类别的数量，直条越高数量越多。"),
       q("apply", "周一 8 本，周二 5 本，周二比周一少几本？", ["3 本", "13 本", "5 本"], 0, "8-5=3。"),
       q("transfer", "统计图一格表示 4 人，某直条高 3 格，对应多少人？", ["12 人", "7 人", "3 人"], 0, "3×4=12。", 2),
     ],
@@ -721,7 +721,7 @@ const additionalChapters: Chapter[] = [
     questions: [
       q("apply", "3+4×2 等于多少？", ["11", "14", "10"], 0, "先算 4×2=8，再算 3+8=11。"),
       q("apply", "20-12÷4 等于多少？", ["17", "2", "8"], 0, "先算 12÷4=3，再算 20-3=17。"),
-      q("transfer", "下面哪一步应先算？8+15÷3×2", ["15÷3", "8+15", "3×2 先于除法"], 0, "乘除同级，按从左到右先算 15÷3。", 2),
+      q("transfer", "计算 8+15÷3×2 时，应该先算哪一步？", ["15÷3", "8+15", "3×2 先于除法"], 0, "乘除同级，按从左到右先算 15÷3。", 2),
     ],
   }),
   createChapter({
@@ -865,7 +865,7 @@ const additionalChapters: Chapter[] = [
     questions: [
       q("identify", "0 到 1 平均分成 10 份，第 6 个分点表示哪个数？", ["0.6", "6", "0.06"], 0, "6 个十分之一就是 0.6。"),
       q("apply", "0.35 在数轴上位于哪两个十分位之间？", ["0.3 和 0.4", "0.2 和 0.3", "0.35 和 0.36"], 0, "0.35 比 0.3 大、比 0.4 小，落在它们之间。"),
-      q("transfer", "下面哪个数最接近 1？", ["0.98", "0.9", "0.89"], 0, "0.98 与 1 相差 0.02，是三者中最近的。", 2),
+      q("transfer", "0.98、0.9、0.89 中，最接近 1 的数是哪一个？", ["0.98", "0.9", "0.89"], 0, "0.98 与 1 相差 0.02，是三者中最近的。", 2),
     ],
   }),
   createChapter({
@@ -937,7 +937,7 @@ const additionalChapters: Chapter[] = [
     questions: [
       q("apply", "18-2×5 的正确结果是多少？", ["8", "80", "20"], 0, "先算 2×5=10，再算 18-10=8。"),
       q("apply", "(12+8)÷4 等于多少？", ["5", "11", "2"], 0, "先算括号里 12+8=20，再算 20÷4=5。"),
-      q("transfer", "下面哪道算式会先算加法？", ["(6+4)×3", "6+4×3", "6×4+3"], 0, "只有 (6+4)×3 把加法放在括号里优先计算。", 2),
+      q("transfer", "在 (6+4)×3、6+4×3、6×4+3 中，哪道算式会先算加法？", ["(6+4)×3", "6+4×3", "6×4+3"], 0, "只有 (6+4)×3 把加法放在括号里优先计算。", 2),
     ],
   }),
   createChapter({
@@ -984,7 +984,7 @@ const additionalBossSeeds: Record<number, QuestionSeed[]> = {
   2: [
     q("identify", "4/6 化简后是哪个分数？", ["2/3", "2/6", "4/3"], 0, "分子和分母同时除以 2，得到 2/3。"),
     q("judge", "1/2 和 3/6 大小相等。", ["正确", "错误"], 0, "1/2 的分子和分母同时乘 3，得到 3/6。"),
-    q("apply", "下面哪个分数与 3/4 相等？", ["9/12", "4/3", "3/12"], 0, "3/4 的分子和分母同时乘 3，得到 9/12。"),
+    q("apply", "在 9/12、4/3、3/12 中，与 3/4 相等的分数是哪一个？", ["9/12", "4/3", "3/12"], 0, "3/4 的分子和分母同时乘 3，得到 9/12。"),
     q("transfer", "12/16 与哪个分数相等？", ["3/4", "4/3", "6/8 的一半"], 0, "分子和分母同时除以 4，得到 3/4。", 2),
   ],
   3: [
@@ -1194,7 +1194,7 @@ const firstBossQuestions: ContentQuestion[] = [
     id: "item.fraction.boss.01",
     nodeId: "math.fractions_decimals.fraction_meaning",
     kind: "identify",
-    prompt: "一个整体平均分成 7 份，取走 3 份。下面哪个分数正确？",
+    prompt: "一个整体平均分成 7 份，取走 3 份。表示取走部分的分数是哪一个？",
     options: ["3/7", "7/3", "3/4"],
     answerIndex: 0,
     explanation: "分母表示平均分成 7 份，分子表示取走 3 份。",
@@ -1240,7 +1240,7 @@ const firstBossQuestions: ContentQuestion[] = [
     id: "item.fraction.boss.05",
     nodeId: "math.fractions_decimals.fraction_meaning",
     kind: "apply",
-    prompt: "下面哪个分数与 3/5 相等？",
+    prompt: "在 6/10、5/6、3/10 中，与 3/5 相等的分数是哪一个？",
     options: ["6/10", "5/6", "3/10"],
     answerIndex: 0,
     explanation: "3/5 的分子和分母同时乘 2，得到 6/10。",
@@ -1306,7 +1306,7 @@ const firstBossQuestions: ContentQuestion[] = [
     id: "item.fraction.boss.decisive",
     nodeId: "math.fractions_decimals.fraction_meaning",
     kind: "decisive",
-    prompt: "决胜题：下面说法正确的是哪一个？",
+    prompt: "决胜题：关于 1/2 等值分数的三种说法中，正确的是哪一个？",
     options: [
       "1/2 = 4/8，因为分子分母同时乘 4",
       "1/2 = 2/3，因为分母增加了 1",

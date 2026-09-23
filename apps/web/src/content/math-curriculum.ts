@@ -16,8 +16,9 @@ import {
   milestones as grade4Milestones,
 } from "@/content/math-grade4";
 import { generateBossQuestionSet } from "@/lib/question-generator";
+import { chapterQuestionOverrides } from "@/content/math-chapter-questions";
 
-export const mathContentVersion = "2026.09.23.1";
+export const mathContentVersion = "2026.09.23.2";
 
 type QuestionSeed = Omit<ContentQuestion, "id" | "nodeId">;
 
@@ -33,7 +34,7 @@ type MilestoneBlueprint = {
   domain: string;
   mastery: string[];
   chapters: [ChapterBlueprint, ChapterBlueprint, ChapterBlueprint];
-  questions: QuestionSeed[];
+  bossSeeds: QuestionSeed[];
 };
 
 type GradeBlueprint = {
@@ -107,46 +108,6 @@ function bossId(grade: number, stageNo: number) {
   return `boss.g${grade}.stage.${padStage(stageNo)}`;
 }
 
-function answerText(source: QuestionSeed) {
-  return source.options[source.answerIndex] ?? source.options[0] ?? "";
-}
-
-function contextualQuestion(
-  source: QuestionSeed,
-  chapter: ChapterBlueprint,
-): QuestionSeed {
-  return {
-    ...source,
-    prompt: `在“${chapter.title}”的课堂练习中，请完成：${source.prompt}`,
-  };
-}
-
-function feedbackQuestion(
-  source: QuestionSeed,
-  chapter: ChapterBlueprint,
-): QuestionSeed {
-  const answer = answerText(source);
-
-  return {
-    ...source,
-    kind: "judge",
-    prompt: `小虎在“${chapter.title}”练习中把“${answer}”填了进去。对于题目“${source.prompt}”，他填对了吗？`,
-    options: ["正确", "错误"],
-    answerIndex: 0,
-    explanation: `${source.explanation} 因此“${answer}”是正确的。`,
-  };
-}
-
-function decisionQuestion(
-  source: QuestionSeed,
-  chapter: ChapterBlueprint,
-): QuestionSeed {
-  return {
-    ...source,
-    prompt: `结合“${chapter.summary}”这一学习重点，回答：${source.prompt}`,
-  };
-}
-
 function createChapter(input: {
   id: string;
   milestoneId: string;
@@ -156,37 +117,23 @@ function createChapter(input: {
   blueprint: ChapterBlueprint;
   milestone: MilestoneBlueprint;
 }): Chapter {
-  const sourceQuestions = input.milestone.questions;
-  const primary = contextualQuestion(
-    sourceQuestions[input.chapterNo % sourceQuestions.length],
-    input.blueprint,
-  );
-  const practice = feedbackQuestion(
-    sourceQuestions[(input.chapterNo + 1) % sourceQuestions.length],
-    input.blueprint,
-  );
-  const quiz = decisionQuestion(
-    sourceQuestions[(input.chapterNo + 2) % sourceQuestions.length],
-    input.blueprint,
-  );
-  const questions: QuestionSeed[] = [
-    primary,
-    practice,
-    quiz,
-  ];
+  const questions = chapterQuestionOverrides[input.id];
+  if (!questions) {
+    throw new Error(`CHAPTER_QUESTIONS_MISSING:${input.id}`);
+  }
   const phases = ["guided", "practice", "quiz"] as const;
   const steps: LessonStep[] = [
     {
       id: `${input.id}.hook`,
       phase: "hook",
       title: input.blueprint.title,
-      body: `从“${input.milestone.theme}”里的一个具体例子开始：${input.blueprint.summary}`,
+      body: `本节围绕“${input.blueprint.title}”展开：${input.blueprint.summary}`,
     },
     {
       id: `${input.id}.concept`,
       phase: "concept",
       title: `抓住关键：${input.blueprint.title}`,
-      body: `${input.blueprint.summary} 先看清条件，再选择合适的运算或判断方法。`,
+      body: input.blueprint.summary,
     },
     ...questions.map((question, index) => ({
       id: `${input.id}.${phases[index]}`,
@@ -199,8 +146,8 @@ function createChapter(input: {
             : "章节短测",
       body:
         index === 2
-          ? "答对后，本章的学习证据会由服务端记录。"
-          : "先说明理由，再选择答案。",
+          ? "答对这一题，本章的学习证据就记录完成。"
+          : "先想清楚每一步，再选择答案。",
       question: {
         ...question,
         id: `${input.id}.${phases[index]}.item`,
@@ -257,13 +204,12 @@ function buildGradeContent(blueprint: GradeBlueprint): MathGradeContent {
 
   const extraSeeds: ContentQuestion[] = blueprint.milestones.flatMap(
     (milestone, milestoneIndex) =>
-      milestone.questions.slice(0, 3).map((seed, seedIndex) => ({
+      milestone.bossSeeds.map((seed, seedIndex) => ({
         ...seed,
         id: `item.g${blueprint.grade}.${padStage(
           milestoneIndex + 1,
         )}.seed.${seedIndex + 1}`,
         nodeId: nodeId(blueprint.grade, milestoneIndex + 1),
-        prompt: `综合应用：${seed.prompt}`,
       })),
   );
 
@@ -289,7 +235,7 @@ function buildGradeContent(blueprint: GradeBlueprint): MathGradeContent {
       return generateBossQuestionSet({
         sourceQuestions: [...chapterQuestions, ...seedQuestions],
         seed: 20260900 + blueprint.grade * 100 + stageNo,
-        questionCount: 10,
+        questionCount: 8,
         idPrefix: `item.g${blueprint.grade}.boss.${padStage(stageNo)}`,
       });
     },
@@ -361,7 +307,7 @@ const gradeOne: GradeBlueprint = {
         { title: "比多少和大小", summary: "用更多、更少和大小符号比较数量。" },
         { title: "按顺序排队", summary: "从 0 到 10 顺着数、倒着数。" },
       ],
-      questions: [
+      bossSeeds: [
         q("identify", "5 和 7 相比，哪个数更大？", ["7", "5", "一样大"], 0, "7 在数轴上排在 5 的后面，所以 7 更大。"),
         q("apply", "从 3 接着往后数一个数，是哪一个？", ["4", "2", "5"], 0, "3 的下一个数是 4。"),
         q("judge", "0 表示一个也没有。", ["正确", "错误"], 0, "0 可以表示一个物体也没有。"),
@@ -379,7 +325,7 @@ const gradeOne: GradeBlueprint = {
         { title: "去掉用减法", summary: "从总数里去掉一部分，用减法求剩下。" },
         { title: "加减互相检查", summary: "用总数和一部分检查另一部分。" },
       ],
-      questions: [
+      bossSeeds: [
         q("apply", "2+3 等于多少？", ["5", "4", "6"], 0, "2 和 3 合起来是 5。"),
         q("apply", "7-4 等于多少？", ["3", "2", "4"], 0, "7 去掉 4 还剩 3。"),
         q("judge", "5+0 的结果还是 5。", ["正确", "错误"], 0, "加上 0 表示没有增加。"),
@@ -397,7 +343,7 @@ const gradeOne: GradeBlueprint = {
         { title: "二十以内排队", summary: "按从小到大或从大到小排列。" },
         { title: "紧挨着的数", summary: "找前一个数、后一个数和相邻数。" },
       ],
-      questions: [
+      bossSeeds: [
         q("identify", "14 里面有几个十和几个一？", ["1 个十和 4 个一", "4 个十和 1 个一", "14 个十"], 0, "14 的十位是 1，个位是 4。"),
         q("apply", "16 后面一个数是多少？", ["17", "15", "18"], 0, "16 往后数一个是 17。"),
         q("judge", "19 比 20 小。", ["正确", "错误"], 0, "19 在 20 前面。"),
@@ -415,7 +361,7 @@ const gradeOne: GradeBlueprint = {
         { title: "十再加几", summary: "凑成十后，再加上剩下的数。" },
         { title: "生活中的进位加", summary: "用进位加法解决买东西和排队问题。" },
       ],
-      questions: [
+      bossSeeds: [
         q("apply", "8+5 等于多少？", ["13", "12", "14"], 0, "8 先加 2 得 10，再加 3 得 13。"),
         q("apply", "9+7 等于多少？", ["16", "15", "17"], 0, "9 先加 1 得 10，再加 6 得 16。"),
         q("judge", "计算 8+5 时，可以把 5 分成 2 和 3。", ["正确", "错误"], 0, "8 加 2 凑十，再加 3。"),
@@ -433,7 +379,7 @@ const gradeOne: GradeBlueprint = {
         { title: "想加算减", summary: "想哪个数加减数得到总数。" },
         { title: "生活中的退位减", summary: "用减法解决剩下多少的问题。" },
       ],
-      questions: [
+      bossSeeds: [
         q("apply", "13-5 等于多少？", ["8", "7", "9"], 0, "10-5=5，5+3=8。"),
         q("apply", "15-8 等于多少？", ["7", "6", "8"], 0, "10-8=2，2+5=7。"),
         q("judge", "12-4 可以用 4+8=12 来验算。", ["正确", "错误"], 0, "减法和加法可以互相检查。"),
@@ -451,7 +397,7 @@ const gradeOne: GradeBlueprint = {
         { title: "上下左右", summary: "用方位词说清物体在哪里。" },
         { title: "前后和排队", summary: "根据前后顺序描述位置。" },
       ],
-      questions: [
+      bossSeeds: [
         q("identify", "有 3 条边的图形叫什么？", ["三角形", "正方形", "圆"], 0, "三角形有 3 条边。"),
         q("apply", "苹果在桌子的上面，说明苹果的位置在哪里？", ["桌子上方", "桌子下面", "桌子里面"], 0, "上面表示在物体的上方。"),
         q("judge", "圆没有直直的边。", ["正确", "错误"], 0, "圆是由一条曲线围成的。"),
@@ -469,7 +415,7 @@ const gradeOne: GradeBlueprint = {
         { title: "发现重复规律", summary: "观察一组图形怎样重复出现。" },
         { title: "补上接下来的", summary: "根据规律判断下一个是什么。" },
       ],
-      questions: [
+      bossSeeds: [
         q("apply", "红球、红球、蓝球、红球、红球、蓝球，下一个是什么？", ["红球", "蓝球", "黄球"], 0, "规律是红、红、蓝重复。"),
         q("judge", "按颜色分类时，同一组的物体颜色相同。", ["正确", "错误"], 0, "颜色是这组分类的标准。"),
         q("identify", "把圆形放一起、三角形放一起，这是按什么分类？", ["形状", "时间", "味道"], 0, "这里使用的标准是形状。"),
@@ -487,7 +433,7 @@ const gradeOne: GradeBlueprint = {
         { title: "厘米小尺子", summary: "用厘米作单位量出物体长度。" },
         { title: "认识整时", summary: "看钟面时针和分针读整时。" },
       ],
-      questions: [
+      bossSeeds: [
         q("apply", "铅笔一端对着 0，另一端对着 8，铅笔长多少厘米？", ["8 厘米", "7 厘米", "9 厘米"], 0, "从 0 到 8 是 8 厘米。"),
         q("identify", "钟面时针指向 3，分针指向 12，是几时？", ["3 时", "12 时", "6 时"], 0, "分针指向 12，时针指向 3，就是 3 时。"),
         q("judge", "比较两根绳子长短时，要先把一端对齐。", ["正确", "错误"], 0, "一端对齐后才能公平比较另一端。"),
@@ -505,7 +451,7 @@ const gradeOne: GradeBlueprint = {
         { title: "图片里的数据", summary: "用画圈或小方块表示数量。" },
         { title: "谁最多谁最少", summary: "比较几类数据的多少。" },
       ],
-      questions: [
+      bossSeeds: [
         q("apply", "统计图里苹果有 5 个，梨有 3 个，苹果比梨多几个？", ["2 个", "8 个", "3 个"], 0, "5-3=2。"),
         q("identify", "画了 4 个圆表示 4 本书，这表示什么？", ["书的数量", "书的颜色", "书的价格"], 0, "4 个圆对应 4 本书。"),
         q("judge", "数量最多的那一类，画出的图形通常最多。", ["正确", "错误"], 0, "图形数量对应数据多少。"),
@@ -523,7 +469,7 @@ const gradeOne: GradeBlueprint = {
         { title: "还剩多少", summary: "从总数中去掉一部分用减法。" },
         { title: "两步小问题", summary: "先求中间量，再解决最终问题。" },
       ],
-      questions: [
+      bossSeeds: [
         q("apply", "车上有 9 人，到站下去 3 人，还剩多少人？", ["6 人", "12 人", "3 人"], 0, "9-3=6。"),
         q("apply", "小明有 5 支笔，小红有 4 支笔，一共多少支？", ["9 支", "1 支", "8 支"], 0, "5+4=9。"),
         q("judge", "求“一共”通常把几部分合起来。", ["正确", "错误"], 0, "合起来用加法。"),
@@ -549,7 +495,7 @@ const gradeTwo: GradeBlueprint = {
         { title: "满十要进位", summary: "个位相加满十，向十位进一。" },
         { title: "不够减就退位", summary: "个位不够减时，从十位退一当十。" },
       ],
-      questions: [
+      bossSeeds: [
         q("apply", "34+25 等于多少？", ["59", "49", "69"], 0, "34+20=54，54+5=59。"),
         q("apply", "63-28 等于多少？", ["35", "45", "31"], 0, "63-20=43，43-8=35。"),
         q("judge", "计算 47+35 时，个位 7+5=12，要向十位进 1。", ["正确", "错误"], 0, "个位满十需要进位。"),
@@ -567,7 +513,7 @@ const gradeTwo: GradeBlueprint = {
         { title: "口诀二到五", summary: "借助点子图熟记二到五的乘法口诀。" },
         { title: "口诀六到九", summary: "用规律和交换律记住六到九的口诀。" },
       ],
-      questions: [
+      bossSeeds: [
         q("identify", "3+3+3+3 可以写成哪个乘法算式？", ["3×4", "4×4", "3+4"], 0, "4 个 3 相加写成 3×4。"),
         q("apply", "6×7 等于多少？", ["42", "36", "48"], 0, "六七四十二。"),
         q("judge", "4×5 和 5×4 的结果相同。", ["正确", "错误"], 0, "乘法交换后结果不变。"),
@@ -585,7 +531,7 @@ const gradeTwo: GradeBlueprint = {
         { title: "每份有几个", summary: "按每份数量分一分，求能分成几份。" },
         { title: "乘除互逆", summary: "用乘法口诀找到除法答案。" },
       ],
-      questions: [
+      bossSeeds: [
         q("apply", "12÷3 等于多少？", ["4", "3", "6"], 0, "三四十二，所以 12÷3=4。"),
         q("apply", "18÷6 等于多少？", ["3", "4", "2"], 0, "三六十八，所以 18÷6=3。"),
         q("judge", "可以用 5×7=35 检查 35÷5=7。", ["正确", "错误"], 0, "除法可以用乘法验算。"),
@@ -603,7 +549,7 @@ const gradeTwo: GradeBlueprint = {
         { title: "先求总数", summary: "先求总数，再平均分或比较。" },
         { title: "乘除小应用", summary: "在买东西和分组情境中使用乘除法。" },
       ],
-      questions: [
+      bossSeeds: [
         q("apply", "每盒有 6 支笔，4 盒一共多少支？", ["24 支", "10 支", "18 支"], 0, "6×4=24。"),
         q("apply", "36 本书平均分给 9 人，每人几本？", ["4 本", "6 本", "9 本"], 0, "36÷9=4。"),
         q("judge", "求几个相同加数的和，可以用乘法。", ["正确", "错误"], 0, "乘法表示相同加数求和。"),
@@ -621,7 +567,7 @@ const gradeTwo: GradeBlueprint = {
         { title: "认识米", summary: "用米尺测量较长距离。" },
         { title: "选择合适的单位", summary: "根据物体长短选择厘米或米。" },
       ],
-      questions: [
+      bossSeeds: [
         q("apply", "1 米等于多少厘米？", ["100 厘米", "10 厘米", "1000 厘米"], 0, "1 米=100 厘米。"),
         q("identify", "教室门的高度更适合用什么单位？", ["米", "厘米", "千米"], 0, "教室门比课桌高很多，用米更合适。"),
         q("judge", "量铅笔长度通常用厘米作单位。", ["正确", "错误"], 0, "铅笔较短，适合用厘米。"),
@@ -639,7 +585,7 @@ const gradeTwo: GradeBlueprint = {
         { title: "找到直角", summary: "借助三角尺判断直角。" },
         { title: "锐角和钝角", summary: "比直角小是锐角，比直角大是钝角。" },
       ],
-      questions: [
+      bossSeeds: [
         q("identify", "角由什么组成？", ["一个顶点和两条边", "三个顶点", "四条边"], 0, "角有一个顶点和两条边。"),
         q("judge", "钝角比直角大。", ["正确", "错误"], 0, "钝角大于直角。"),
         q("apply", "用三角尺上的直角比一比，比直角小的角叫什么？", ["锐角", "钝角", "平角"], 0, "比直角小的角是锐角。"),
@@ -657,7 +603,7 @@ const gradeTwo: GradeBlueprint = {
         { title: "图形拼一拼", summary: "用三角形、正方形等拼出新图形。" },
         { title: "图形分类", summary: "按边数、角和是否直角分类。" },
       ],
-      questions: [
+      bossSeeds: [
         q("identify", "哪一组对边分别平行？", ["平行四边形", "圆", "三角形"], 0, "平行四边形有两组对边分别平行。"),
         q("judge", "两个完全一样的三角形可以拼成平行四边形。", ["正确", "错误"], 0, "沿对应边拼接可以拼成平行四边形。"),
         q("apply", "正方形有几条边？", ["4 条", "3 条", "5 条"], 0, "正方形有四条边。"),
@@ -675,7 +621,7 @@ const gradeTwo: GradeBlueprint = {
         { title: "看统计表", summary: "从统计表中读取每一类的数据。" },
         { title: "象形统计图", summary: "用相同图形表示相同数量。" },
       ],
-      questions: [
+      bossSeeds: [
         q("apply", "一个正字表示 5，两个正字表示多少？", ["10", "2", "7"], 0, "每个正字 5，两个就是 10。"),
         q("identify", "统计表中哪一列表示数量？", ["数字最多的一列", "标题", "颜色"], 0, "数量列用数字记录每类有多少。"),
         q("judge", "象形统计图中每个小图形表示的数量应统一。", ["正确", "错误"], 0, "统一标准才能正确比较。"),
@@ -693,7 +639,7 @@ const gradeTwo: GradeBlueprint = {
         { title: "分类再整理", summary: "按多个标准分类并记录结果。" },
         { title: "搭配有几种", summary: "用连线或列表不重不漏地找搭配。" },
       ],
-      questions: [
+      bossSeeds: [
         q("apply", "2、4、6、8、□，下一个是多少？", ["10", "9", "12"], 0, "每次增加 2，下一项是 10。"),
         q("judge", "分类时可以先按颜色，再按形状继续分。", ["正确", "错误"], 0, "分类可以包含多个标准。"),
         q("apply", "2 件上衣和 3 条裤子，一共有几种搭配？", ["6 种", "5 种", "3 种"], 0, "2×3=6。"),
@@ -711,7 +657,7 @@ const gradeTwo: GradeBlueprint = {
         { title: "再求剩下", summary: "从总数里减去一部分求剩下。" },
         { title: "乘加和乘减", summary: "先算乘法，再算加减法。" },
       ],
-      questions: [
+      bossSeeds: [
         q("apply", "每袋 5 个苹果，买了 3 袋，吃了 4 个，还剩几个？", ["11 个", "15 个", "9 个"], 0, "5×3=15，15-4=11。"),
         q("apply", "小明有 20 元，买书用 12 元，又买笔用 5 元，还剩多少元？", ["3 元", "7 元", "13 元"], 0, "20-12-5=3。"),
         q("judge", "两步问题可以先找中间问题。", ["正确", "错误"], 0, "先求中间量有助于列式。"),
@@ -737,7 +683,7 @@ const gradeThree: GradeBlueprint = {
         { title: "读写与比较", summary: "按数位顺序读写和比较大小。" },
         { title: "近似数估算", summary: "把数看作接近的整百或整千数。" },
       ],
-      questions: [
+      bossSeeds: [
         q("identify", "4308 中数字 3 在什么数位上？", ["百位", "十位", "千位"], 0, "从右往左依次是个位、十位、百位、千位，3 在百位。"),
         q("apply", "由 5 个千、2 个百和 6 个一组成的数是多少？", ["5206", "5260", "5026"], 0, "千位 5、百位 2、十位 0、个位 6，合起来是 5206。"),
         q("judge", "比较 3980 和 4010 时，4010 更大。", ["正确", "错误"], 0, "千位 4 大于 3，因此 4010 更大。"),
@@ -755,7 +701,7 @@ const gradeThree: GradeBlueprint = {
         { title: "连续退位减法", summary: "不够减时逐位退一，保持数位关系。" },
         { title: "验算与估算", summary: "用逆运算或估算判断结果是否合理。" },
       ],
-      questions: [
+      bossSeeds: [
         q("apply", "1568+2745 等于多少？", ["4313", "4213", "4323"], 0, "1568+2745=4313。"),
         q("apply", "5002-1876 等于多少？", ["3126", "3226", "3136"], 0, "5002-1876=3126。"),
         q("judge", "计算 786+235 时，个位 6+5 满十，要向十位进一。", ["正确", "错误"], 0, "个位相加满十必须进位。"),
@@ -773,7 +719,7 @@ const gradeThree: GradeBlueprint = {
         { title: "有余数的除法", summary: "试商、相乘、相减，余数要比除数小。" },
         { title: "乘除综合应用", summary: "根据已知条件选择乘法或除法。" },
       ],
-      questions: [
+      bossSeeds: [
         q("apply", "236×4 等于多少？", ["944", "844", "934"], 0, "236×4=944。"),
         q("apply", "47÷5 的商和余数分别是多少？", ["商 9 余 2", "商 8 余 7", "商 9 余 5"], 0, "5×9=45，47-45=2。"),
         q("judge", "有余数的除法中，余数可以等于除数。", ["错误", "正确"], 0, "余数必须小于除数。"),
@@ -791,7 +737,7 @@ const gradeThree: GradeBlueprint = {
         { title: "经过时间", summary: "用结束时刻减开始时刻求经过时间。" },
         { title: "年月日", summary: "认识月份天数和平年、闰年。" },
       ],
-      questions: [
+      bossSeeds: [
         q("apply", "2 时 15 分等于多少分？", ["135 分", "215 分", "125 分"], 0, "2 时=120 分，再加 15 分是 135 分。"),
         q("apply", "从 8:40 到 9:25 经过了多长时间？", ["45 分", "35 分", "55 分"], 0, "9:25-8:40=45 分。"),
         q("judge", "平年的二月有 28 天。", ["正确", "错误"], 0, "平年二月 28 天，闰年二月 29 天。"),
@@ -809,7 +755,7 @@ const gradeThree: GradeBlueprint = {
         { title: "质量单位", summary: "认识克、千克、吨并合理选择。" },
         { title: "容量与换算", summary: "认识升和毫升，完成简单换算。" },
       ],
-      questions: [
+      bossSeeds: [
         q("identify", "测量一枚硬币的厚度，用哪个单位更合适？", ["毫米", "米", "千米"], 0, "硬币很薄，用毫米更合适。"),
         q("apply", "3 千米 500 米等于多少米？", ["3500 米", "3050 米", "350 米"], 0, "3 千米=3000 米，再加 500 米是 3500 米。"),
         q("judge", "1 吨等于 1000 千克。", ["正确", "错误"], 0, "吨和千克的进率是 1000。"),
@@ -827,7 +773,7 @@ const gradeThree: GradeBlueprint = {
         { title: "长方形周长", summary: "长方形周长=（长+宽）×2。" },
         { title: "正方形周长", summary: "正方形周长=边长×4。" },
       ],
-      questions: [
+      bossSeeds: [
         q("identify", "围成图形一周的长度叫什么？", ["周长", "面积", "体积"], 0, "图形一周的长度叫周长。"),
         q("apply", "长 8 厘米、宽 5 厘米的长方形周长是多少？", ["26 厘米", "13 厘米", "40 厘米"], 0, "(8+5)×2=26 厘米。"),
         q("judge", "正方形边长为 6 米，周长是 24 米。", ["正确", "错误"], 0, "6×4=24 米。"),
@@ -845,7 +791,7 @@ const gradeThree: GradeBlueprint = {
         { title: "面积单位", summary: "认识平方厘米、平方分米和平方米。" },
         { title: "长方形面积", summary: "用长乘宽计算长方形的面积。" },
       ],
-      questions: [
+      bossSeeds: [
         q("identify", "计算教室地面的大小，应该求什么？", ["面积", "周长", "时间"], 0, "地面的大小是面积。"),
         q("apply", "长 7 厘米、宽 4 厘米的长方形面积是多少？", ["28 平方厘米", "22 厘米", "11 平方厘米"], 0, "7×4=28 平方厘米。"),
         q("judge", "面积单位和长度单位可以随意互换使用。", ["错误", "正确"], 0, "面积表示面的大小，长度表示线段长短。"),
@@ -863,7 +809,7 @@ const gradeThree: GradeBlueprint = {
         { title: "几分之几", summary: "数出平均分后的若干份。" },
         { title: "同分母比较", summary: "分母相同时，分子大的分数大。" },
       ],
-      questions: [
+      bossSeeds: [
         q("identify", "把一个蛋糕平均分成 8 份，其中 3 份用哪个分数表示？", ["3/8", "8/3", "1/8"], 0, "取 8 份中的 3 份，是 3/8。"),
         q("apply", "同分母分数 2/7 和 5/7，哪个更大？", ["5/7", "2/7", "一样大"], 0, "分母相同，分子 5 大于 2。"),
         q("judge", "1/4 表示把一个整体平均分成 4 份。", ["正确", "错误"], 0, "分母表示平均分成的份数。"),
@@ -881,7 +827,7 @@ const gradeThree: GradeBlueprint = {
         { title: "元角分中的小数", summary: "用元作单位表示几元几角。" },
         { title: "小数比较", summary: "先比较整数部分，再比较小数部分。" },
       ],
-      questions: [
+      bossSeeds: [
         q("identify", "十分之三写成小数是多少？", ["0.3", "3.0", "0.03"], 0, "十分之三写成 0.3。"),
         q("apply", "5 元 6 角写成用元作单位的小数是多少？", ["5.6 元", "56 元", "0.56 元"], 0, "6 角是 0.6 元，合起来是 5.6 元。"),
         q("judge", "0.8 比 0.5 大。", ["正确", "错误"], 0, "整数部分相同，十分位 8 大于 5。"),
@@ -899,7 +845,7 @@ const gradeThree: GradeBlueprint = {
         { title: "数据里的问题", summary: "用最多、最少和相差数回答统计问题。" },
         { title: "有序搭配", summary: "按固定顺序列举，做到不重不漏。" },
       ],
-      questions: [
+      bossSeeds: [
         q("identify", "条形统计图中直条越高，通常表示什么？", ["数量越多", "数量越少", "时间越长"], 0, "直条高度对应数量多少。"),
         q("apply", "统计图中周一借书 35 本，周二借书 28 本，相差多少本？", ["7 本", "63 本", "8 本"], 0, "35-28=7 本。"),
         q("judge", "列举搭配时按固定顺序可以避免重复和遗漏。", ["正确", "错误"], 0, "有序列举是常用的计数方法。"),
@@ -925,7 +871,7 @@ const gradeFive: GradeBlueprint = {
         { title: "小数乘法", summary: "先按整数乘法计算，再确定小数点位置。" },
         { title: "小数除法", summary: "把除数转化为整数，再按小数除法计算。" },
       ],
-      questions: [
+      bossSeeds: [
         q("apply", "2.4×3 等于多少？", ["7.2", "0.72", "72"], 0, "2.4×3=7.2。"),
         q("apply", "4.8÷0.6 等于多少？", ["8", "0.8", "80"], 0, "4.8÷0.6=48÷6=8。"),
         q("judge", "一个数乘 0.5，积一定比原数小（原数大于 0）。", ["正确", "错误"], 0, "乘小于 1 的数，积会变小。"),
@@ -943,9 +889,9 @@ const gradeFive: GradeBlueprint = {
         { title: "奇偶与整除", summary: "用整除特征判断 2、3、5 的倍数。" },
         { title: "质数与合数", summary: "按因数个数给大于 1 的自然数分类。" },
       ],
-      questions: [
+      bossSeeds: [
         q("identify", "18 的因数有几个？", ["6 个", "5 个", "8 个"], 0, "18 的因数是 1、2、3、6、9、18，共 6 个。"),
-        q("apply", "下面哪个数既是 2 的倍数，又是 5 的倍数？", ["30", "25", "12"], 0, "末尾是 0 的数同时是 2 和 5 的倍数。"),
+        q("apply", "在 30、25、12 中，哪个数既是 2 的倍数，又是 5 的倍数？", ["30", "25", "12"], 0, "末尾是 0 的数同时是 2 和 5 的倍数。"),
         q("judge", "1 是质数。", ["错误", "正确"], 0, "质数有且只有两个因数，1 只有一个因数。"),
         q("transfer", "把 24 个苹果平均分成若干组，每组 6 个，可以分成几组？", ["4 组", "6 组", "8 组"], 0, "24÷6=4 组。", 2),
       ],
@@ -961,7 +907,7 @@ const gradeFive: GradeBlueprint = {
         { title: "假分数与带分数", summary: "用除法把假分数化成整数或带分数。" },
         { title: "分数与除法", summary: "理解分数与除法之间的联系。" },
       ],
-      questions: [
+      bossSeeds: [
         q("identify", "7/5 是什么分数？", ["假分数", "真分数", "带分数"], 0, "分子大于分母，是假分数。"),
         q("apply", "9/4 化成带分数是多少？", ["2 1/4", "1 4/9", "2 4/1"], 0, "9÷4=2 余 1，所以是 2 1/4。"),
         q("judge", "3÷7 的商用分数表示是 3/7。", ["正确", "错误"], 0, "被除数作分子，除数作分母。"),
@@ -979,7 +925,7 @@ const gradeFive: GradeBlueprint = {
         { title: "通分再相减", summary: "统一分数单位后再计算差。" },
         { title: "结果化最简", summary: "分子分母同时除以最大公因数。" },
       ],
-      questions: [
+      bossSeeds: [
         q("apply", "1/2+1/3 等于多少？", ["5/6", "2/5", "1/6"], 0, "通分得 3/6+2/6=5/6。"),
         q("apply", "3/4-1/2 等于多少？", ["1/4", "2/2", "1/2"], 0, "3/4-2/4=1/4。"),
         q("judge", "异分母分数相加减，要先通分。", ["正确", "错误"], 0, "分母不同，分数单位不同，需要先统一。"),
@@ -997,7 +943,7 @@ const gradeFive: GradeBlueprint = {
         { title: "展开图", summary: "把立体图形的表面展开成平面图形。" },
         { title: "表面积计算", summary: "求所有面的面积总和。" },
       ],
-      questions: [
+      bossSeeds: [
         q("identify", "长方体有几个面？", ["6 个", "8 个", "12 个"], 0, "长方体有 6 个面。"),
         q("apply", "棱长 3 厘米的正方体表面积是多少？", ["54 平方厘米", "27 平方厘米", "36 平方厘米"], 0, "每个面 9 平方厘米，共 6 个面，9×6=54。"),
         q("judge", "长方体中相对的面完全相同。", ["正确", "错误"], 0, "长方体相对的两个面大小和形状相同。"),
@@ -1015,7 +961,7 @@ const gradeFive: GradeBlueprint = {
         { title: "体积单位", summary: "认识立方厘米、立方分米和立方米。" },
         { title: "长方体体积", summary: "长方体体积=长×宽×高。" },
       ],
-      questions: [
+      bossSeeds: [
         q("identify", "物体所占空间的大小叫什么？", ["体积", "周长", "面积"], 0, "物体所占空间的大小叫体积。"),
         q("apply", "1 立方分米等于多少立方厘米？", ["1000 立方厘米", "100 立方厘米", "10 立方厘米"], 0, "棱长 1 分米的正方体体积是 1000 立方厘米。"),
         q("judge", "底面积相同的长方体，高越大体积越大。", ["正确", "错误"], 0, "体积=底面积×高。"),
@@ -1033,8 +979,8 @@ const gradeFive: GradeBlueprint = {
         { title: "认识方程", summary: "含有未知数的等式叫方程。" },
         { title: "解简易方程", summary: "利用等式性质求未知数的值。" },
       ],
-      questions: [
-        q("identify", "下面哪个式子是方程？", ["x+3=8", "x+3", "5>2"], 0, "方程必须含有未知数并且是等式。"),
+      bossSeeds: [
+        q("identify", "在 x+3=8、x+3、5>2 中，哪个式子是方程？", ["x+3=8", "x+3", "5>2"], 0, "方程必须含有未知数并且是等式。"),
         q("apply", "解方程 x+7=15，x 等于多少？", ["8", "22", "7"], 0, "15-7=8。"),
         q("judge", "等式两边同时加同一个数，等式仍成立。", ["正确", "错误"], 0, "这是等式的基本性质。"),
         q("transfer", "每盒铅笔有 x 支，4 盒共有 48 支，x 是多少？", ["12", "44", "52"], 0, "4x=48，所以 x=12。", 2),
@@ -1051,7 +997,7 @@ const gradeFive: GradeBlueprint = {
         { title: "三角形面积", summary: "两个完全一样的三角形可拼成平行四边形。" },
         { title: "梯形面积", summary: "梯形面积=（上底+下底）×高÷2。" },
       ],
-      questions: [
+      bossSeeds: [
         q("apply", "底 8 厘米、高 5 厘米的平行四边形面积是多少？", ["40 平方厘米", "26 平方厘米", "20 平方厘米"], 0, "8×5=40 平方厘米。"),
         q("apply", "底 6 米、高 4 米的三角形面积是多少？", ["12 平方米", "24 平方米", "10 平方米"], 0, "6×4÷2=12 平方米。"),
         q("judge", "三角形面积公式中要除以 2。", ["正确", "错误"], 0, "两个一样的三角形拼成平行四边形，所以三角形面积要除以 2。"),
@@ -1069,7 +1015,7 @@ const gradeFive: GradeBlueprint = {
         { title: "用平均数比较", summary: "在总量和份数不同时比较整体水平。" },
         { title: "复式统计图", summary: "同时比较两组数据的变化。" },
       ],
-      questions: [
+      bossSeeds: [
         q("apply", "4 次测验成绩分别是 80、90、85、85，平均分是多少？", ["85", "84", "86"], 0, "(80+90+85+85)÷4=85。"),
         q("identify", "平均数反映一组数据的什么特征？", ["整体水平", "最大值", "最小值"], 0, "平均数表示一组数据的整体水平。"),
         q("judge", "一组数据的平均数一定等于其中的某个数据。", ["错误", "正确"], 0, "平均数可能不在原始数据中。"),
@@ -1087,7 +1033,7 @@ const gradeFive: GradeBlueprint = {
         { title: "可能性大小", summary: "数量多的结果通常更容易出现。" },
         { title: "综合问题", summary: "分析条件，分步解决实际问题。" },
       ],
-      questions: [
+      bossSeeds: [
         q("identify", "太阳从东方升起属于哪种事件？", ["一定发生", "可能发生", "不可能发生"], 0, "这是确定会发生的自然现象。"),
         q("apply", "盒中 5 个红球、1 个蓝球，摸出一个球，哪种颜色更可能？", ["红球", "蓝球", "一样可能"], 0, "红球数量更多，摸到红球的可能性更大。"),
         q("judge", "袋子里全是白球，摸出黑球是不可能事件。", ["正确", "错误"], 0, "没有黑球，不可能摸到黑球。"),
@@ -1113,7 +1059,7 @@ const gradeSix: GradeBlueprint = {
         { title: "倒数与分数除法", summary: "除以一个不为 0 的数等于乘它的倒数。" },
         { title: "分数乘除应用", summary: "根据单位“1”和分率选择乘除。" },
       ],
-      questions: [
+      bossSeeds: [
         q("apply", "2/3×3/4 等于多少？", ["1/2", "5/7", "6/7"], 0, "约分后 2/3×3/4=1/2。"),
         q("apply", "3/4÷1/2 等于多少？", ["3/2", "3/8", "2/3"], 0, "3/4÷1/2=3/4×2=3/2。"),
         q("judge", "0 没有倒数。", ["正确", "错误"], 0, "0 与任何数相乘都不等于 1，所以 0 没有倒数。"),
@@ -1131,7 +1077,7 @@ const gradeSix: GradeBlueprint = {
         { title: "化简比与求比值", summary: "利用比的基本性质化简，比值是一个数。" },
         { title: "按比分配", summary: "把总量按给定份数分配。" },
       ],
-      questions: [
+      bossSeeds: [
         q("apply", "12:18 化成最简整数比是多少？", ["2:3", "3:2", "6:9"], 0, "前项和后项同时除以 6，得到 2:3。"),
         q("identify", "3:4 的比值是多少？", ["3/4", "4/3", "7"], 0, "比值等于前项除以后项，即 3/4。"),
         q("judge", "比的前项和后项同时乘一个不为 0 的数，比值不变。", ["正确", "错误"], 0, "这是比的基本性质。"),
@@ -1149,7 +1095,7 @@ const gradeSix: GradeBlueprint = {
         { title: "百分数与分数小数", summary: "在三种表示之间正确互化。" },
         { title: "折扣与增减", summary: "用百分数解决折扣、涨价和降价问题。" },
       ],
-      questions: [
+      bossSeeds: [
         q("identify", "25% 化成最简分数是多少？", ["1/4", "1/5", "4/1"], 0, "25%=25/100=1/4。"),
         q("apply", "80 的 25% 是多少？", ["20", "25", "40"], 0, "80×25%=20。"),
         q("judge", "一件商品打八折，就是按原价的 80% 出售。", ["正确", "错误"], 0, "八折表示原价的 80%。"),
@@ -1167,7 +1113,7 @@ const gradeSix: GradeBlueprint = {
         { title: "圆的周长", summary: "圆的周长=圆周率×直径。" },
         { title: "圆的面积", summary: "圆的面积=圆周率×半径的平方。" },
       ],
-      questions: [
+      bossSeeds: [
         q("identify", "在同一个圆中，直径与半径的关系是什么？", ["直径是半径的 2 倍", "半径是直径的 2 倍", "二者相等"], 0, "同圆中直径等于半径的 2 倍。"),
         q("apply", "半径 3 厘米的圆，周长是多少？取 π=3.14。", ["18.84 厘米", "9.42 厘米", "28.26 厘米"], 0, "C=2×3.14×3=18.84 厘米。"),
         q("judge", "圆的面积公式是 πr²。", ["正确", "错误"], 0, "圆的面积等于圆周率乘半径的平方。"),
@@ -1185,7 +1131,7 @@ const gradeSix: GradeBlueprint = {
         { title: "圆柱的体积", summary: "圆柱体积=底面积×高。" },
         { title: "圆锥的体积", summary: "等底等高时，圆锥体积是圆柱体积的 1/3。" },
       ],
-      questions: [
+      bossSeeds: [
         q("identify", "等底等高时，圆锥体积是圆柱体积的几分之几？", ["1/3", "1/2", "3 倍"], 0, "等底等高时，圆锥体积是圆柱体积的 1/3。"),
         q("apply", "底面积 10 平方厘米、高 6 厘米的圆柱体积是多少？", ["60 立方厘米", "30 立方厘米", "16 立方厘米"], 0, "10×6=60 立方厘米。"),
         q("judge", "圆柱侧面展开后可能是长方形。", ["正确", "错误"], 0, "沿高剪开圆柱侧面，通常展开成长方形。"),
@@ -1203,7 +1149,7 @@ const gradeSix: GradeBlueprint = {
         { title: "正比例", summary: "比值一定时，两种量成正比例。" },
         { title: "反比例", summary: "乘积一定时，两种量成反比例。" },
       ],
-      questions: [
+      bossSeeds: [
         q("identify", "单价一定时，总价和数量成什么比例？", ["正比例", "反比例", "不成比例"], 0, "总价÷数量=单价，比值一定，成正比例。"),
         q("apply", "路程一定时，速度和时间成什么比例？", ["反比例", "正比例", "无关系"], 0, "速度×时间=路程，乘积一定，成反比例。"),
         q("judge", "圆的周长和直径成正比例。", ["正确", "错误"], 0, "周长÷直径=π，比值一定。"),
@@ -1221,7 +1167,7 @@ const gradeSix: GradeBlueprint = {
         { title: "数轴上的数", summary: "0 左边是负数，右边是正数。" },
         { title: "比较大小", summary: "数轴上右边的数总比左边的数大。" },
       ],
-      questions: [
+      bossSeeds: [
         q("identify", "零下 5 摄氏度记作多少？", ["-5℃", "5℃", "0℃"], 0, "低于 0℃ 的温度用负数表示。"),
         q("apply", "-3 和 -7 相比，哪个数更大？", ["-3", "-7", "一样大"], 0, "数轴上 -3 在 -7 右边。"),
         q("judge", "0 既不是正数，也不是负数。", ["正确", "错误"], 0, "0 是正负数的分界，不是正数也不是负数。"),
@@ -1239,7 +1185,7 @@ const gradeSix: GradeBlueprint = {
         { title: "数据分析", summary: "结合总量计算某一部分的具体数量。" },
         { title: "可能性", summary: "用分数表示简单事件发生的可能性。" },
       ],
-      questions: [
+      bossSeeds: [
         q("identify", "扇形统计图中各部分百分比之和应等于多少？", ["100%", "50%", "360%"], 0, "所有部分合起来是整体，即 100%。"),
         q("apply", "全班 40 人，喜欢篮球的占 25%，有多少人？", ["10 人", "8 人", "16 人"], 0, "40×25%=10 人。"),
         q("judge", "袋中有 1 红 3 蓝，随机摸一球，摸到红球的可能性是 1/4。", ["正确", "错误"], 0, "红球 1 个，总球数 4 个，可能性是 1/4。"),
@@ -1257,7 +1203,7 @@ const gradeSix: GradeBlueprint = {
         { title: "求实际距离", summary: "根据比例尺把图上距离转换成实际距离。" },
         { title: "放大与缩小", summary: "按相同比改变图形大小，形状不变。" },
       ],
-      questions: [
+      bossSeeds: [
         q("identify", "比例尺 1:100 表示图上 1 厘米相当于实际多少厘米？", ["100 厘米", "1 厘米", "10 厘米"], 0, "比例尺前项 1 对应后项 100。"),
         q("apply", "比例尺 1:2000，图上 3 厘米表示实际多少米？", ["60 米", "600 米", "6 米"], 0, "3×2000=6000 厘米=60 米。"),
         q("judge", "把图形按 2:1 放大后，形状保持不变。", ["正确", "错误"], 0, "按比例放大只改变大小，不改变形状。"),
@@ -1275,7 +1221,7 @@ const gradeSix: GradeBlueprint = {
         { title: "比例与分配", summary: "用比和比例解决总量分配问题。" },
         { title: "综合模型检验", summary: "分步列式并用估算或逆运算检查。" },
       ],
-      questions: [
+      bossSeeds: [
         q("apply", "一件商品先涨价 10%，再降价 10%，最后价格与原价相比如何？", ["比原价低", "与原价相同", "比原价高"], 0, "两次变化的单位“1”不同，最后价格是原价的 99%。"),
         q("apply", "甲、乙人数比是 3:2，总人数 50 人，甲有多少人？", ["30 人", "20 人", "25 人"], 0, "总份数 5，甲占 3 份，50÷5×3=30 人。"),
         q("judge", "解决百分数问题前，先确定单位“1”有助于选择运算。", ["正确", "错误"], 0, "单位“1”决定谁和谁比较。"),

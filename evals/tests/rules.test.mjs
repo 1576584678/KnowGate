@@ -121,6 +121,24 @@ test("wording flags placeholders and answer leaks", () => {
   );
 });
 
+test("wording flags legacy template wrappers in prompts", () => {
+  const wrappers = [
+    "在“数一数有几个”的课堂练习中，请完成：一共有几个？",
+    "小虎在“比多少”练习中把“7”填了进去。对于题目“5 和 7 谁大？”，他填对了吗？",
+    "结合“十以内加减”这一学习重点，回答：2+3 等于多少？",
+    "综合应用：3+4×2 等于多少？",
+  ];
+
+  for (const prompt of wrappers) {
+    assert.ok(
+      codes(wording.check(question({ prompt }))).includes(
+        "PLACEHOLDER_IN_PROMPT",
+      ),
+      `expected wrapper to be rejected: ${prompt}`,
+    );
+  }
+});
+
 test("duplicates reports exact and near duplicates from the index", () => {
   const similar = question({
     id: "item.test.2",
