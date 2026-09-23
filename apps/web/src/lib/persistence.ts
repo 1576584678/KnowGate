@@ -159,6 +159,10 @@ function mapContentPublicationAudit(
 export type PersistenceStore = ReturnType<typeof createPersistence>;
 
 function defaultDatabasePath() {
+  if (process.env.VERCEL) {
+    return "/tmp/knowgate.sqlite";
+  }
+
   return (
     process.env.KNOWGATE_DB_PATH ??
     resolve(process.cwd(), ".data", "knowgate.sqlite")
