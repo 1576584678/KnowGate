@@ -144,12 +144,17 @@ function sortGradeWorlds(worlds: GradeWorldSummary[]) {
   );
 }
 
-const contentCacheKey = "knowgate.contentCache.v1";
+const legacyContentCacheKey = "knowgate.contentCache.v1";
+const contentCacheKeyPrefix = "knowgate.contentCache.v2.";
 
-function readCachedGraph(): RuntimeGraph | undefined {
+function gradeWorldCacheKey(gradeWorldId: string) {
+  return `${contentCacheKeyPrefix}${gradeWorldId}`;
+}
+
+function readCachedGraph(gradeWorldId: string): RuntimeGraph | undefined {
   if (typeof window === "undefined") return undefined;
   try {
-    const raw = window.localStorage.getItem(contentCacheKey);
+    const raw = window.localStorage.getItem(gradeWorldCacheKey(gradeWorldId));
     if (!raw) return undefined;
     const parsed: unknown = JSON.parse(raw);
     return isRuntimeGraph(parsed) ? parsed : undefined;
@@ -158,46 +163,84 @@ function readCachedGraph(): RuntimeGraph | undefined {
   }
 }
 
-function writeCachedGraph(graph: RuntimeGraph) {
+function writeCachedGraph(gradeWorldId: string, graph: RuntimeGraph) {
   try {
-    window.localStorage.setItem(contentCacheKey, JSON.stringify(graph));
+    window.localStorage.setItem(
+      gradeWorldCacheKey(gradeWorldId),
+      JSON.stringify(graph),
+    );
   } catch {
     // Storage may be unavailable or full; the server response still applies.
   }
 }
 
+function gradeNumberFromWorldId(gradeWorldId: string) {
+  const match = /^math\.g(\d+)$/u.exec(gradeWorldId);
+  return match ? Number(match[1]) : undefined;
+}
+
 export function ContentProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [graph, setGraph] = useState<RuntimeGraph>(emptyGraph);
-  const [selectedGradeWorldId, setSelectedGradeWorldId] = useState(
-    fallbackGradeWorld.id,
-  );
-  const [ready, setReady] = useState(false);
+  const [requestedGradeWorldId, setRequestedGradeWorldId] = useState<
+    string | undefined
+  >();
+  const [loadedGradeWorldId, setLoadedGradeWorldId] = useState<
+    string | undefined
+  >();
   const [error, setError] = useState("");
+  const pathGradeWorldId = gradeWorldIdFromPath(pathname);
+
+  // The URL wins, then the previous choice, then the default grade.
+  useEffect(() => {
+    // The pre-grade cache shape is obsolete and cost a few hundred kilobytes.
+    window.localStorage.removeItem(legacyContentCacheKey);
+
+    const worldIds = new Set(fallbackGradeWorlds.map((world) => world.id));
+    const savedGradeWorldId = window.localStorage.getItem("knowgate.gradeWorld");
+    const nextGradeWorldId =
+      pathGradeWorldId ??
+      (savedGradeWorldId && worldIds.has(savedGradeWorldId)
+        ? savedGradeWorldId
+        : fallbackGradeWorld.id);
+
+    window.localStorage.setItem("knowgate.gradeWorld", nextGradeWorldId);
+    setRequestedGradeWorldId(nextGradeWorldId);
+  }, [pathGradeWorldId]);
 
   useEffect(() => {
+    if (!requestedGradeWorldId) return;
+    const gradeWorldId = requestedGradeWorldId;
+    const grade = gradeNumberFromWorldId(gradeWorldId);
+    if (grade === undefined) {
+      setError("课程内容加载失败，请刷新页面后重试。");
+      return;
+    }
+
     let cancelled = false;
-    const cached = readCachedGraph();
+    const cached = readCachedGraph(gradeWorldId);
 
     // Render from the previous visit immediately, then revalidate quietly.
     if (cached) {
       setGraph(cached);
-      setReady(true);
+      setLoadedGradeWorldId(gradeWorldId);
+      setError("");
     }
 
     async function hydrateFromServer() {
       try {
-        const response = await profileFetch("/api/v1/content", {
-          cache: "default",
-        });
+        const response = await profileFetch(
+          `/api/v1/content/grades/${grade}`,
+          { cache: "default" },
+        );
         if (!response.ok) throw new Error("CONTENT_LOAD_FAILED");
         const payload = (await response.json()) as { content?: unknown };
         if (cancelled) return;
         if (isRuntimeGraph(payload.content)) {
           setGraph(payload.content);
-          setReady(true);
+          setLoadedGradeWorldId(gradeWorldId);
           setError("");
-          writeCachedGraph(payload.content);
+          writeCachedGraph(gradeWorldId, payload.content);
         } else if (!cached) {
           setError("课程内容加载失败，请刷新页面后重试。");
         }
@@ -212,39 +255,22 @@ export function ContentProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [requestedGradeWorldId]);
 
-  const pathGradeWorldId = gradeWorldIdFromPath(pathname);
-
-  useEffect(() => {
-    if (!ready) return;
-
-    const worldIds = new Set(graph.worlds.map((world) => world.id));
-    if (pathGradeWorldId && worldIds.has(pathGradeWorldId)) {
-      setSelectedGradeWorldId(pathGradeWorldId);
-      window.localStorage.setItem("knowgate.gradeWorld", pathGradeWorldId);
-      return;
-    }
-
-    const savedGradeWorldId = window.localStorage.getItem("knowgate.gradeWorld");
-    if (savedGradeWorldId && worldIds.has(savedGradeWorldId)) {
-      setSelectedGradeWorldId(savedGradeWorldId);
-    }
-  }, [graph.worlds, pathGradeWorldId, ready]);
+  const ready =
+    requestedGradeWorldId !== undefined &&
+    loadedGradeWorldId === requestedGradeWorldId;
 
   const value = useMemo<ContentContextValue>(() => {
     const gradeWorlds = sortGradeWorlds(graph.worlds);
     const gradeWorld =
-      gradeWorlds.find((world) => world.id === selectedGradeWorldId) ??
+      gradeWorlds.find((world) => world.id === requestedGradeWorldId) ??
       gradeWorlds.find((world) => world.id === fallbackGradeWorld.id) ??
       fallbackGradeWorld;
-    const gradePrefix = `math.g${gradeWorld.grade}.`;
-    const milestones = graph.milestones
-      .filter((milestone) => milestone.id.startsWith(gradePrefix))
-      .sort(
-        (left, right) =>
-          left.stageNo - right.stageNo || left.id.localeCompare(right.id),
-      );
+    const milestones = [...graph.milestones].sort(
+      (left, right) =>
+        left.stageNo - right.stageNo || left.id.localeCompare(right.id),
+    );
     const milestoneIds = new Set(milestones.map((milestone) => milestone.id));
     const chapters = graph.chapters
       .filter((chapter) => milestoneIds.has(chapter.milestoneId))
@@ -286,15 +312,15 @@ export function ContentProvider({ children }: { children: ReactNode }) {
       bossQuestions: questions,
       setGradeWorld: (gradeWorldId) => {
         if (!gradeWorlds.some((world) => world.id === gradeWorldId)) return;
-        setSelectedGradeWorldId(gradeWorldId);
         window.localStorage.setItem("knowgate.gradeWorld", gradeWorldId);
+        setRequestedGradeWorldId(gradeWorldId);
       },
       getChapter: (chapterId) => chaptersById.get(chapterId),
       getMilestone: (milestoneId) => milestonesById.get(milestoneId),
       getBoss: (bossId) => bossesById.get(bossId),
       getNode: (nodeId) => nodesById.get(nodeId),
     };
-  }, [graph, ready, selectedGradeWorldId]);
+  }, [graph, ready, requestedGradeWorldId]);
 
   if (!ready) {
     return (

@@ -4,6 +4,8 @@ import {
   getChapterDetail,
   getGradeWorld,
   getMilestoneDetail,
+  getPublicRuntimeContentGraph,
+  getPublicRuntimeGradeGraph,
   getSubjects,
 } from "./content-api";
 
@@ -60,5 +62,44 @@ describe("content API", () => {
     expect(question).toBeDefined();
     expect(Object.hasOwn(question!, "answerIndex")).toBe(false);
     expect(Object.hasOwn(question!, "explanation")).toBe(false);
+  });
+
+  it("slices public content per grade without losing questions", () => {
+    const full = getPublicRuntimeContentGraph();
+    const gradePayloads = [1, 2, 3, 4, 5, 6].map((grade) =>
+      getPublicRuntimeGradeGraph(grade),
+    );
+
+    for (const [index, payload] of gradePayloads.entries()) {
+      const grade = index + 1;
+      const prefix = `math.g${grade}.`;
+
+      expect(payload.milestones.length).toBeGreaterThan(0);
+      expect(
+        payload.milestones.every((milestone) => milestone.id.startsWith(prefix)),
+      ).toBe(true);
+      expect(payload.chapters.length).toBeGreaterThan(0);
+      expect(
+        payload.chapters.every((chapter) => chapter.milestoneId.startsWith(prefix)),
+      ).toBe(true);
+      // The grade switcher needs every world summary in each slice.
+      expect(payload.worlds).toHaveLength(full.worlds.length);
+    }
+
+    const gradeQuestionCount = gradePayloads.reduce(
+      (total, payload) => total + payload.questions.length,
+      0,
+    );
+    expect(gradeQuestionCount).toBe(full.questions.length);
+
+    const gradeChapterCount = gradePayloads.reduce(
+      (total, payload) => total + payload.chapters.length,
+      0,
+    );
+    expect(gradeChapterCount).toBe(full.chapters.length);
+
+    expect(
+      JSON.stringify(gradePayloads[0]).length,
+    ).toBeLessThan(JSON.stringify(full).length);
   });
 });

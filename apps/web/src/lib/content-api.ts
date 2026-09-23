@@ -21,15 +21,48 @@ function publicChapter(chapter: Chapter): PublicChapter {
   };
 }
 
+function publicGradeWorldSummaries(contentVersion: string) {
+  return mathGradeWorlds.map((world) => ({
+    ...world,
+    contentVersion,
+  }));
+}
+
 function buildPublicRuntimeContentGraph(graph: ContentGraph) {
   return {
     ...graph,
-    worlds: mathGradeWorlds.map((world) => ({
-      ...world,
-      contentVersion: graph.contentVersion,
-    })),
+    worlds: publicGradeWorldSummaries(graph.contentVersion),
     chapters: graph.chapters.map(publicChapter),
     questions: graph.questions.map(publicContentQuestion),
+  };
+}
+
+function buildPublicGradeGraph(graph: ContentGraph, grade: number) {
+  const prefix = `math.g${grade}.`;
+  const milestones = graph.milestones.filter((milestone) =>
+    milestone.id.startsWith(prefix),
+  );
+  const milestoneIds = new Set(milestones.map((milestone) => milestone.id));
+  const chapters = graph.chapters.filter((chapter) =>
+    milestoneIds.has(chapter.milestoneId),
+  );
+  const bossIds = new Set(milestones.map((milestone) => milestone.bossId));
+  const bosses = graph.bosses.filter((boss) => bossIds.has(boss.id));
+  const nodeIds = new Set([
+    ...milestones.flatMap((milestone) => milestone.nodeIds),
+    ...chapters.flatMap((chapter) => chapter.nodeIds),
+  ]);
+
+  return {
+    contentVersion: graph.contentVersion,
+    worlds: publicGradeWorldSummaries(graph.contentVersion),
+    nodes: graph.nodes.filter((node) => nodeIds.has(node.id)),
+    chapters: chapters.map(publicChapter),
+    milestones,
+    bosses,
+    questions: graph.questions
+      .filter((question) => nodeIds.has(question.nodeId))
+      .map(publicContentQuestion),
   };
 }
 
@@ -51,6 +84,32 @@ export function getPublicRuntimeContentGraph(): PublicRuntimeContentGraph {
 
   const payload = buildPublicRuntimeContentGraph(graph);
   publicRuntimeContentCache = { graph, payload };
+  return payload;
+}
+
+type PublicGradeGraph = ReturnType<typeof buildPublicGradeGraph>;
+
+let publicGradeGraphCache:
+  | { graph: ContentGraph; byGrade: Map<number, PublicGradeGraph> }
+  | undefined;
+
+export function getSupportedGrades() {
+  return mathGradeWorlds.map((world) => world.grade);
+}
+
+// The full graph is a few hundred kilobytes, so the client only downloads the
+// grade it is showing. Slices are cached per grade while the graph is unchanged.
+export function getPublicRuntimeGradeGraph(grade: number): PublicGradeGraph {
+  const graph = buildRuntimeContentGraph();
+  if (publicGradeGraphCache?.graph !== graph) {
+    publicGradeGraphCache = { graph, byGrade: new Map() };
+  }
+
+  const cached = publicGradeGraphCache.byGrade.get(grade);
+  if (cached) return cached;
+
+  const payload = buildPublicGradeGraph(graph, grade);
+  publicGradeGraphCache.byGrade.set(grade, payload);
   return payload;
 }
 
