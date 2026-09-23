@@ -1,0 +1,11 @@
+# Local development and evaluation artifacts that are not needed to build
+# the Next.js app. Without this, local Python virtualenvs inside evals/
+# push the upload past the Vercel CLI file limit.
+.git
+.data
+.vercel
+node_modules
+.next
+evals
+*.log
+r.origin
