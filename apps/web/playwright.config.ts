@@ -28,7 +28,9 @@ export default defineConfig({
     reuseExistingServer: false,
     timeout: 120_000,
     env: {
-      KNOWGATE_DB_PATH: resolve(process.cwd(), ".data", "e2e.sqlite"),
+      // A per-run database keeps published content from an earlier run from
+      // leaking into the next one and tripping content-version checks.
+      KNOWGATE_DB_PATH: databasePath,
     },
   },
 });
