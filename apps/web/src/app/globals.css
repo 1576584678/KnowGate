@@ -214,16 +214,36 @@ p {
 
 .world-badge {
   display: inline-flex;
-  min-height: 40px;
+  min-width: 0;
+  min-height: 44px;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 4px 12px 4px 14px;
   color: #194185;
   background: var(--color-info-soft);
   border: 1px solid #b9ddff;
   border-radius: 999px;
   font-size: var(--text-sm);
   font-weight: 800;
+}
+
+.world-badge select {
+  min-width: 0;
+  max-width: 260px;
+  min-height: 34px;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.world-badge select:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 4px;
 }
 
 .world-badge__dot {
@@ -2378,11 +2398,12 @@ html[data-reduced-motion="true"] *::after {
   }
 
   .world-badge {
-    max-width: 150px;
-    overflow: hidden;
+    max-width: min(330px, calc(100vw - 150px));
     font-size: var(--text-xs);
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  }
+
+  .world-badge select {
+    max-width: 230px;
   }
 
   .page-intro,
@@ -2523,7 +2544,11 @@ html[data-reduced-motion="true"] *::after {
   }
 
   .world-badge {
-    max-width: 128px;
+    max-width: calc(100vw - 96px);
+  }
+
+  .world-badge select {
+    max-width: 210px;
   }
 
   .map-board {

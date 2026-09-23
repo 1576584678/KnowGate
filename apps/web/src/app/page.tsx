@@ -33,11 +33,12 @@ type MilestoneState = "done" | "current" | "available" | "locked";
 
 export default function WorldMapPage() {
   const { passedChapterIds, battleOutcomes, ready } = useProgress();
-  const { chapters, milestones, getBoss } = useContent();
+  const { chapters, gradeWorld, milestones, getBoss } = useContent();
   const currentMilestone =
     milestones.find(
       (milestone) => battleOutcomes[milestone.id]?.status !== "won",
     ) ?? milestones[milestones.length - 1];
+  const [gradeLabel, worldTitle] = gradeWorld.name.split(" · ");
   const currentMilestoneChapters = chapters.filter((chapter) =>
     currentMilestone.chapterIds.includes(chapter.id),
   );
@@ -86,9 +87,9 @@ export default function WorldMapPage() {
   return (
     <div className={`page-shell${ready ? "" : " page-shell--loading"}`}>
       <PageIntro
-        eyebrow="四年级数学"
-        title="分数群岛"
-        description="从分数意义出发，穿过等值、小数、图形、数据与问题解决阶段，完成 10 个能力里程碑。"
+        eyebrow={`${gradeLabel}数学`}
+        title={worldTitle || gradeWorld.name}
+        description={`从${milestones[0]?.theme ?? "核心能力"}出发，完成 ${milestones.length} 个能力里程碑。`}
         aside={
           <div className="world-summary">
             <div>

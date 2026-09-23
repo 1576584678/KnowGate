@@ -7,13 +7,9 @@ import type {
   Milestone,
 } from "@knowgate/domain";
 import {
-  bossQuestions,
-  bosses,
-  chapters,
-  gradeWorld,
-  knowledgeNodes,
-  milestones,
-} from "@/content/math-grade4";
+  fullMathContentGraph,
+  mathGradeWorlds,
+} from "@/content/math-curriculum";
 import type { ContentGraph } from "@/lib/content-validation";
 import {
   getPersistence,
@@ -100,6 +96,20 @@ function applyPublication(
   };
 }
 
+function mergeContentGraph(
+  base: ContentGraph,
+  overlay: ContentGraph,
+): ContentGraph {
+  return {
+    contentVersion: overlay.contentVersion || base.contentVersion,
+    nodes: upsertById(base.nodes, overlay.nodes),
+    chapters: upsertById(base.chapters, overlay.chapters),
+    milestones: upsertById(base.milestones, overlay.milestones),
+    bosses: upsertById(base.bosses, overlay.bosses),
+    questions: upsertById(base.questions, overlay.questions),
+  };
+}
+
 function snapshotGraph(snapshot: ContentSnapshot): ContentGraph {
   const graph = snapshot.graph as Partial<ContentGraph>;
   if (
@@ -113,7 +123,7 @@ function snapshotGraph(snapshot: ContentSnapshot): ContentGraph {
     throw new Error("CONTENT_SNAPSHOT_INVALID");
   }
 
-  return graph as ContentGraph;
+  return mergeContentGraph(fullMathContentGraph, graph as ContentGraph);
 }
 
 export function contentRolloutBucket(profileId: string) {
@@ -134,12 +144,12 @@ function legacyRuntimeContent(
   persistence: PersistenceStore = getPersistence(),
 ): ContentGraph {
   let graph: ContentGraph = {
-    contentVersion: gradeWorld.contentVersion,
-    nodes: [...knowledgeNodes],
-    chapters: [...chapters],
-    milestones: [...milestones],
-    bosses: [...bosses],
-    questions: [...bossQuestions],
+    contentVersion: fullMathContentGraph.contentVersion,
+    nodes: [...fullMathContentGraph.nodes],
+    chapters: [...fullMathContentGraph.chapters],
+    milestones: [...fullMathContentGraph.milestones],
+    bosses: [...fullMathContentGraph.bosses],
+    questions: [...fullMathContentGraph.questions],
   };
 
   // getPublishedContent returns publications oldest-first, so later
@@ -205,9 +215,12 @@ export function buildRuntimeContentGraph(
 
 export function getRuntimeGradeWorld(
   persistence: PersistenceStore = getPersistence(),
+  gradeWorldId = "math.g4",
 ) {
   const graph = buildRuntimeContentGraph(persistence);
-  return { ...gradeWorld, contentVersion: graph.contentVersion };
+  const world = mathGradeWorlds.find((item) => item.id === gradeWorldId);
+  if (!world) throw new Error("GRADE_WORLD_NOT_FOUND");
+  return { ...world, contentVersion: graph.contentVersion };
 }
 
 export function getRuntimeChapter(

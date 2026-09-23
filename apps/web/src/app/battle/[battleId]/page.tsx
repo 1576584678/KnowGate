@@ -438,11 +438,7 @@ function BattleResult({
     },
   });
   const stars = accuracy >= 90 ? 3 : accuracy >= 70 ? 2 : 1;
-  const nextMilestoneNumber = Math.min(10, Number(battle.milestoneId.slice(-2)) + 1);
-  const nextMilestoneId = `math.g4.milestone.${String(nextMilestoneNumber).padStart(
-    2,
-    "0",
-  )}`;
+  const nextMilestoneId = nextMilestoneFor(battle.milestoneId);
 
   return (
     <div className="page-shell result-page">
@@ -525,7 +521,10 @@ function BattleResult({
 
       <div className="result-actions">
         {won ? (
-          <Link className="button button--primary" href="/">
+          <Link
+            className="button button--primary"
+            href={`/milestones/${nextMilestoneId}`}
+          >
             进入下一关
             <ArrowRight size={19} aria-hidden="true" />
           </Link>
@@ -547,4 +546,12 @@ function BattleResult({
       </div>
     </div>
   );
+}
+
+function nextMilestoneFor(milestoneId: string) {
+  const match = /^(.*\.milestone\.)(\d+)$/u.exec(milestoneId);
+  if (!match) return milestoneId;
+
+  const nextStageNo = Math.min(10, Number(match[2]) + 1);
+  return `${match[1]}${String(nextStageNo).padStart(2, "0")}`;
 }

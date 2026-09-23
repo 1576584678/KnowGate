@@ -8,6 +8,7 @@ import {
   knowledgeNodes,
   milestones,
 } from "@/content/math-grade4";
+import { fullMathContentGraph } from "@/content/math-curriculum";
 import {
   assertContentGraph,
   type ContentGraph,
@@ -16,10 +17,33 @@ import {
 
 describe("content graph validation", () => {
   it("accepts the complete grade-four content graph", () => {
+    const issues = validateContentGraph({
+      contentVersion: gradeWorld.contentVersion,
+      nodes: knowledgeNodes,
+      chapters,
+      milestones,
+      bosses,
+      questions: bossQuestions,
+    });
+
+    expect(issues.filter((issue) => issue.severity === "error")).toEqual([]);
+    expect(() =>
+      assertContentGraph({
+        contentVersion: gradeWorld.contentVersion,
+        nodes: knowledgeNodes,
+        chapters,
+        milestones,
+        bosses,
+        questions: bossQuestions,
+      }),
+    ).not.toThrow();
+  });
+
+  it("accepts the complete grades one through six content graph", () => {
     const issues = validateContentGraph();
 
     expect(issues.filter((issue) => issue.severity === "error")).toEqual([]);
-    expect(() => assertContentGraph()).not.toThrow();
+    expect(() => assertContentGraph(fullMathContentGraph)).not.toThrow();
   });
 
   it("keeps equivalent-fraction practice aligned with its prompt", () => {

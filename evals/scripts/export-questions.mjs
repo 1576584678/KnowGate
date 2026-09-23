@@ -1,6 +1,6 @@
 /**
- * Flattens the grade-4 math content module into a machine-readable question set
- * that both audit pipelines consume.
+ * Flattens the grades 1-6 math content module into a machine-readable question
+ * set that both audit pipelines consume.
  *
  * promptfoo (hard rules) and RAGAS (soft scoring) must review the *same*
  * records, so this script is the single source of truth for the dataset. It
@@ -34,7 +34,7 @@ async function loadContentModule() {
   mkdirSync(dirname(cacheBundle), { recursive: true });
 
   await build({
-    entryPoints: [resolve(webRoot, "src", "content", "math-grade4.ts")],
+    entryPoints: [resolve(webRoot, "src", "content", "math-curriculum.ts")],
     outfile: cacheBundle,
     bundle: true,
     format: "esm",
@@ -57,6 +57,8 @@ function toRecord(question, origin) {
 
   return {
     id: question.id,
+    grade: origin.grade,
+    gradeWorldId: origin.gradeWorldId,
     nodeId: question.nodeId,
     kind: question.kind,
     origin: origin.origin, // "chapter" | "boss"
@@ -89,48 +91,63 @@ function toRecord(question, origin) {
 
 export async function collectQuestions() {
   const content = await loadContentModule();
-  const { chapters, milestones, bosses, bossQuestions, gradeWorld, knowledgeNodes } =
-    content;
-
-  const milestoneById = new Map(milestones.map((m) => [m.id, m]));
-  const bossById = new Map(bosses.map((b) => [b.id, b]));
   const records = [];
+  const gradeWorlds = content.mathGradeWorlds;
+  let totalChapters = 0;
+  let totalMilestones = 0;
+  let totalBosses = 0;
+  let totalNodes = 0;
 
-  for (const chapter of chapters) {
-    const milestone = milestoneById.get(chapter.milestoneId);
-    for (const step of chapter.steps) {
-      if (!step.question) continue;
+  for (const world of gradeWorlds) {
+    const gradeContent = content.getMathGradeContent(world.grade);
+    const { chapters, milestones, bosses, bossQuestions, knowledgeNodes } =
+      gradeContent;
+    const milestoneById = new Map(milestones.map((m) => [m.id, m]));
+    totalChapters += chapters.length;
+    totalMilestones += milestones.length;
+    totalBosses += bosses.length;
+    totalNodes += knowledgeNodes.length;
+
+    for (const chapter of chapters) {
+      const milestone = milestoneById.get(chapter.milestoneId);
+      for (const step of chapter.steps) {
+        if (!step.question) continue;
+        records.push(
+          toRecord(step.question, {
+            origin: "chapter",
+            grade: world.grade,
+            gradeWorldId: world.id,
+            chapterId: chapter.id,
+            chapterTitle: chapter.title,
+            stageNo: chapter.stageNo,
+            milestoneId: chapter.milestoneId,
+            milestoneName: milestone?.name ?? null,
+            stepPhase: step.phase,
+            stepTitle: step.title,
+            stepBody: step.body,
+          }),
+        );
+      }
+    }
+
+    for (const question of bossQuestions) {
+      const boss = bosses.find((candidate) =>
+        candidate.questionIds.includes(question.id),
+      );
+      const milestone = boss ? milestoneById.get(boss.milestoneId) : undefined;
       records.push(
-        toRecord(step.question, {
-          origin: "chapter",
-          chapterId: chapter.id,
-          chapterTitle: chapter.title,
-          stageNo: chapter.stageNo,
-          milestoneId: chapter.milestoneId,
+        toRecord(question, {
+          origin: "boss",
+          grade: world.grade,
+          gradeWorldId: world.id,
+          bossId: boss?.id ?? null,
+          bossName: boss?.name ?? null,
+          stageNo: milestone?.stageNo ?? null,
+          milestoneId: boss?.milestoneId ?? null,
           milestoneName: milestone?.name ?? null,
-          stepPhase: step.phase,
-          stepTitle: step.title,
-          stepBody: step.body,
         }),
       );
     }
-  }
-
-  for (const question of bossQuestions) {
-    const boss = bosses.find((candidate) =>
-      candidate.questionIds.includes(question.id),
-    );
-    const milestone = boss ? milestoneById.get(boss.milestoneId) : undefined;
-    records.push(
-      toRecord(question, {
-        origin: "boss",
-        bossId: boss?.id ?? null,
-        bossName: boss?.name ?? null,
-        stageNo: milestone?.stageNo ?? null,
-        milestoneId: boss?.milestoneId ?? null,
-        milestoneName: milestone?.name ?? null,
-      }),
-    );
   }
 
   // Bosses reuse chapter prompts verbatim (shuffled options), so the two
@@ -138,12 +155,14 @@ export async function collectQuestions() {
   records.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
   return {
-    contentVersion: gradeWorld.contentVersion,
-    gradeWorldId: gradeWorld.id,
-    nodes: knowledgeNodes.length,
-    chapters: chapters.length,
-    milestones: milestones.length,
-    bosses: bosses.length,
+    contentVersion: content.mathContentVersion,
+    gradeWorldId: gradeWorlds.map((world) => world.id).join(","),
+    gradeWorldIds: gradeWorlds.map((world) => world.id),
+    grades: gradeWorlds.map((world) => world.grade),
+    nodes: totalNodes,
+    chapters: totalChapters,
+    milestones: totalMilestones,
+    bosses: totalBosses,
     records,
   };
 }
@@ -159,27 +178,28 @@ async function main() {
   );
 
   const content = await loadContentModule();
+  const graph = content.fullMathContentGraph;
   const graphOut = resolve(dirname(out), "graph.json");
   writeFileSync(
     graphOut,
     JSON.stringify(
       {
-        contentVersion: content.gradeWorld.contentVersion,
-        nodes: content.knowledgeNodes.map((node) => ({
+        contentVersion: graph.contentVersion,
+        nodes: graph.nodes.map((node) => ({
           id: node.id,
           name: node.name,
           domain: node.domain,
           stage: node.stage,
           prerequisites: node.prerequisites,
         })),
-        chapters: content.chapters.map((chapter) => ({
+        chapters: graph.chapters.map((chapter) => ({
           id: chapter.id,
           milestoneId: chapter.milestoneId,
           stageNo: chapter.stageNo,
           title: chapter.title,
           nodeIds: chapter.nodeIds,
         })),
-        milestones: content.milestones.map((milestone) => ({
+        milestones: graph.milestones.map((milestone) => ({
           id: milestone.id,
           stageNo: milestone.stageNo,
           name: milestone.name,
@@ -187,7 +207,7 @@ async function main() {
           nodeIds: milestone.nodeIds,
           bossId: milestone.bossId,
         })),
-        bosses: content.bosses.map((boss) => ({
+        bosses: graph.bosses.map((boss) => ({
           id: boss.id,
           milestoneId: boss.milestoneId,
           name: boss.name,

@@ -7,9 +7,9 @@ import {
 import {
   bossQuestions,
   chapters,
-  gradeWorld,
   milestones,
 } from "../src/content/math-grade4";
+import { mathContentVersion } from "../src/content/math-curriculum";
 
 const adminEmail = "admin@knowgate.local";
 const adminPassword = "local-admin";
@@ -118,7 +118,7 @@ test.describe("P0 product flow", () => {
             data: {
               answers,
               durationSec: chapter.estimatedMinutes * 60,
-              contentVersion: gradeWorld.contentVersion,
+              contentVersion: mathContentVersion,
             },
           },
         );
@@ -359,7 +359,7 @@ test.describe("P0 product flow", () => {
           data: {
             answers,
             durationSec: chapter.estimatedMinutes * 60,
-            contentVersion: gradeWorld.contentVersion,
+            contentVersion: mathContentVersion,
           },
         },
       );
@@ -398,6 +398,17 @@ test.describe("P0 product flow", () => {
       page.getByRole("heading", { name: "10 个里程碑" }),
     ).toBeVisible();
     await expect(page.locator(".map-node")).toHaveCount(10);
+
+    await page
+      .getByRole("combobox", { name: "选择数学年级" })
+      .selectOption("math.g2");
+    await expect(
+      page.getByRole("heading", { name: "运算森林" }),
+    ).toBeVisible();
+    await expect(page.locator(".map-node")).toHaveCount(10);
+    await page
+      .getByRole("combobox", { name: "选择数学年级" })
+      .selectOption("math.g4");
 
     await page.locator('.map-node[data-state="current"]').click();
     await expect(page).toHaveURL(

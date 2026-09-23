@@ -14,7 +14,7 @@ import type {
   QuestionDifficulty,
   QuestionKind,
 } from "@knowgate/domain";
-import { gradeWorld } from "@/content/math-grade4";
+import { mathContentVersion } from "@/content/math-curriculum";
 import {
   validateContentGraph,
   type ContentGraph,
@@ -348,7 +348,7 @@ function parseCurriculum(payload: ContentDraftPayload) {
   return {
     contentVersion:
       payload.contentVersion === undefined
-        ? gradeWorld.contentVersion
+        ? mathContentVersion
         : readText(payload, "contentVersion"),
     nodes:
       payload.nodes === undefined

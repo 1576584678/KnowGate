@@ -2,6 +2,11 @@ import { resolve } from "node:path";
 import { defineConfig } from "@playwright/test";
 
 const baseURL = "http://127.0.0.1:3100";
+const databasePath = resolve(
+  process.cwd(),
+  ".data",
+  `e2e-${process.pid}-${Date.now()}.sqlite`,
+);
 
 export default defineConfig({
   testDir: "./e2e",

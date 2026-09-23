@@ -1,12 +1,19 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { Chapter, ContentQuestion } from "@knowgate/domain";
-import { chapters } from "@/content/math-grade4";
+import {
+  bossQuestions as grade4BossQuestions,
+  bosses as grade4Bosses,
+  chapters,
+  knowledgeNodes as grade4KnowledgeNodes,
+  milestones as grade4Milestones,
+} from "@/content/math-grade4";
 import { completeChapter } from "./chapter-store";
 import { createPersistence, type PersistenceStore } from "./persistence";
 import {
   buildRuntimeContentGraph,
   contentRolloutBucket,
   getRuntimeChapter,
+  getRuntimeGradeWorld,
   resolveRuntimeContent,
 } from "./runtime-content";
 
@@ -76,7 +83,45 @@ function recordSnapshot(
   });
 }
 
+function recordSnapshotWithGraph(
+  persistence: PersistenceStore,
+  input: {
+    id: string;
+    contentVersion: string;
+    graph: Record<string, unknown>;
+  },
+) {
+  const now = new Date().toISOString();
+  persistence.recordContentSnapshot({
+    id: input.id,
+    draftId: `draft.${input.id}`,
+    contentVersion: input.contentVersion,
+    graphHash: "d".repeat(64),
+    curriculumHash: "e".repeat(64),
+    itemSetHash: "f".repeat(64),
+    graph: input.graph,
+    status: "active",
+    rolloutPercent: 100,
+    createdBy: "publisher.1",
+    createdAt: now,
+    activatedAt: now,
+  });
+}
+
 describe("runtime content", () => {
+  it("serves generated grades alongside grade four", () => {
+    const graph = buildRuntimeContentGraph(createStore());
+
+    expect(
+      graph.chapters.some((chapter) => chapter.id === "chapter.g2.01.01"),
+    ).toBe(true);
+    expect(
+      graph.milestones.some(
+        (milestone) => milestone.id === "math.g2.milestone.01",
+      ),
+    ).toBe(true);
+  });
+
   it("resolves published chapters over the static seed graph", () => {
     const persistence = createStore();
     const source = chapters[0];
@@ -201,5 +246,31 @@ describe("runtime content", () => {
 
     expect(resolved.snapshotId).toBe("snapshot.pinned");
     expect(resolved.graph.contentVersion).toBe("v.PINNED");
+  });
+
+  it("merges missing grades into older grade-four-only snapshots", () => {
+    const persistence = createStore();
+    recordSnapshotWithGraph(persistence, {
+      id: "snapshot.grade4-only",
+      contentVersion: "v.GRADE4",
+      graph: {
+        contentVersion: "v.GRADE4",
+        nodes: grade4KnowledgeNodes,
+        chapters,
+        milestones: grade4Milestones,
+        bosses: grade4Bosses,
+        questions: grade4BossQuestions,
+      },
+    });
+
+    const graph = buildRuntimeContentGraph(persistence);
+
+    expect(getRuntimeGradeWorld(persistence, "math.g2").grade).toBe(2);
+    expect(getRuntimeChapter("chapter.g2.01.01", persistence)).toBeDefined();
+    expect(
+      graph.milestones.some(
+        (milestone) => milestone.id === "math.g2.milestone.01",
+      ),
+    ).toBe(true);
   });
 });

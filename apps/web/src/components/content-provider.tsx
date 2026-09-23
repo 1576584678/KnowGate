@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { usePathname } from "next/navigation";
 import type {
   Boss,
   KnowledgeNode,
@@ -19,6 +20,7 @@ import { profileFetch } from "@/lib/profile-client";
 
 type RuntimeGraph = {
   contentVersion: string;
+  worlds: GradeWorldSummary[];
   nodes: KnowledgeNode[];
   chapters: PublicChapter[];
   milestones: Milestone[];
@@ -37,12 +39,14 @@ type GradeWorldSummary = {
 
 type ContentContextValue = {
   ready: boolean;
+  gradeWorlds: GradeWorldSummary[];
   gradeWorld: GradeWorldSummary;
   chapters: PublicChapter[];
   milestones: Milestone[];
   bosses: Boss[];
   knowledgeNodes: KnowledgeNode[];
   bossQuestions: PublicContentQuestion[];
+  setGradeWorld: (gradeWorldId: string) => void;
   getChapter: (chapterId: string) => PublicChapter | undefined;
   getMilestone: (milestoneId: string) => Milestone | undefined;
   getBoss: (bossId: string) => Boss | undefined;
@@ -54,12 +58,57 @@ const fallbackGradeWorld: GradeWorldSummary = {
   subjectId: "math",
   grade: 4,
   name: "四年级 · 分数群岛",
-  contentVersion: "2026.09.20.6",
+  contentVersion: "2026.09.23.1",
   totalStages: 10,
 };
 
+const fallbackGradeWorlds: GradeWorldSummary[] = [
+  {
+    id: "math.g1",
+    subjectId: "math",
+    grade: 1,
+    name: "一年级 · 数字启蒙岛",
+    contentVersion: fallbackGradeWorld.contentVersion,
+    totalStages: 10,
+  },
+  {
+    id: "math.g2",
+    subjectId: "math",
+    grade: 2,
+    name: "二年级 · 运算森林",
+    contentVersion: fallbackGradeWorld.contentVersion,
+    totalStages: 10,
+  },
+  {
+    id: "math.g3",
+    subjectId: "math",
+    grade: 3,
+    name: "三年级 · 算术高原",
+    contentVersion: fallbackGradeWorld.contentVersion,
+    totalStages: 10,
+  },
+  fallbackGradeWorld,
+  {
+    id: "math.g5",
+    subjectId: "math",
+    grade: 5,
+    name: "五年级 · 比例峡谷",
+    contentVersion: fallbackGradeWorld.contentVersion,
+    totalStages: 10,
+  },
+  {
+    id: "math.g6",
+    subjectId: "math",
+    grade: 6,
+    name: "六年级 · 比例星环",
+    contentVersion: fallbackGradeWorld.contentVersion,
+    totalStages: 10,
+  },
+];
+
 const emptyGraph: RuntimeGraph = {
   contentVersion: fallbackGradeWorld.contentVersion,
+  worlds: fallbackGradeWorlds,
   nodes: [],
   chapters: [],
   milestones: [],
@@ -74,6 +123,7 @@ function isRuntimeGraph(value: unknown): value is RuntimeGraph {
   const graph = value as Partial<RuntimeGraph>;
   return (
     typeof graph.contentVersion === "string" &&
+    Array.isArray(graph.worlds) &&
     Array.isArray(graph.nodes) &&
     Array.isArray(graph.chapters) &&
     Array.isArray(graph.milestones) &&
@@ -82,8 +132,24 @@ function isRuntimeGraph(value: unknown): value is RuntimeGraph {
   );
 }
 
+function gradeWorldIdFromPath(pathname: string) {
+  const match = /(?:math|chapter)\.g(\d+)\./u.exec(pathname);
+  return match ? `math.g${match[1]}` : undefined;
+}
+
+function sortGradeWorlds(worlds: GradeWorldSummary[]) {
+  return [...worlds].sort(
+    (left, right) =>
+      left.grade - right.grade || left.id.localeCompare(right.id),
+  );
+}
+
 export function ContentProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const [graph, setGraph] = useState<RuntimeGraph>(emptyGraph);
+  const [selectedGradeWorldId, setSelectedGradeWorldId] = useState(
+    fallbackGradeWorld.id,
+  );
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
 
@@ -112,33 +178,87 @@ export function ContentProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const pathGradeWorldId = gradeWorldIdFromPath(pathname);
+
+  useEffect(() => {
+    if (!ready) return;
+
+    const worldIds = new Set(graph.worlds.map((world) => world.id));
+    if (pathGradeWorldId && worldIds.has(pathGradeWorldId)) {
+      setSelectedGradeWorldId(pathGradeWorldId);
+      window.localStorage.setItem("knowgate.gradeWorld", pathGradeWorldId);
+      return;
+    }
+
+    const savedGradeWorldId = window.localStorage.getItem("knowgate.gradeWorld");
+    if (savedGradeWorldId && worldIds.has(savedGradeWorldId)) {
+      setSelectedGradeWorldId(savedGradeWorldId);
+    }
+  }, [graph.worlds, pathGradeWorldId, ready]);
+
   const value = useMemo<ContentContextValue>(() => {
+    const gradeWorlds = sortGradeWorlds(graph.worlds);
+    const gradeWorld =
+      gradeWorlds.find((world) => world.id === selectedGradeWorldId) ??
+      gradeWorlds.find((world) => world.id === fallbackGradeWorld.id) ??
+      fallbackGradeWorld;
+    const gradePrefix = `math.g${gradeWorld.grade}.`;
+    const milestones = graph.milestones
+      .filter((milestone) => milestone.id.startsWith(gradePrefix))
+      .sort(
+        (left, right) =>
+          left.stageNo - right.stageNo || left.id.localeCompare(right.id),
+      );
+    const milestoneIds = new Set(milestones.map((milestone) => milestone.id));
+    const chapters = graph.chapters
+      .filter((chapter) => milestoneIds.has(chapter.milestoneId))
+      .sort(
+        (left, right) =>
+          left.stageNo - right.stageNo || left.id.localeCompare(right.id),
+      );
+    const bossIds = new Set(milestones.map((milestone) => milestone.bossId));
+    const bosses = graph.bosses.filter((boss) => bossIds.has(boss.id));
+    const nodeIds = new Set([
+      ...milestones.flatMap((milestone) => milestone.nodeIds),
+      ...chapters.flatMap((chapter) => chapter.nodeIds),
+    ]);
+    const nodes = graph.nodes.filter((node) => nodeIds.has(node.id));
+    const questions = graph.questions.filter((question) =>
+      nodeIds.has(question.nodeId),
+    );
     const chaptersById = new Map(
-      graph.chapters.map((chapter) => [chapter.id, chapter]),
+      chapters.map((chapter) => [chapter.id, chapter]),
     );
     const milestonesById = new Map(
-      graph.milestones.map((milestone) => [milestone.id, milestone]),
+      milestones.map((milestone) => [milestone.id, milestone]),
     );
-    const bossesById = new Map(graph.bosses.map((boss) => [boss.id, boss]));
-    const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+    const bossesById = new Map(bosses.map((boss) => [boss.id, boss]));
+    const nodesById = new Map(nodes.map((node) => [node.id, node]));
 
     return {
       ready,
+      gradeWorlds,
       gradeWorld: {
-        ...fallbackGradeWorld,
+        ...gradeWorld,
         contentVersion: graph.contentVersion,
+        totalStages: milestones.length,
       },
-      chapters: graph.chapters,
-      milestones: graph.milestones,
-      bosses: graph.bosses,
-      knowledgeNodes: graph.nodes,
-      bossQuestions: graph.questions,
+      chapters,
+      milestones,
+      bosses,
+      knowledgeNodes: nodes,
+      bossQuestions: questions,
+      setGradeWorld: (gradeWorldId) => {
+        if (!gradeWorlds.some((world) => world.id === gradeWorldId)) return;
+        setSelectedGradeWorldId(gradeWorldId);
+        window.localStorage.setItem("knowgate.gradeWorld", gradeWorldId);
+      },
       getChapter: (chapterId) => chaptersById.get(chapterId),
       getMilestone: (milestoneId) => milestonesById.get(milestoneId),
       getBoss: (bossId) => bossesById.get(bossId),
       getNode: (nodeId) => nodesById.get(nodeId),
     };
-  }, [graph, ready]);
+  }, [graph, ready, selectedGradeWorldId]);
 
   if (!ready) {
     return (

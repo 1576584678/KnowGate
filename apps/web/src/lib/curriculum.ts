@@ -1,6 +1,9 @@
 import type { Milestone } from "@knowgate/domain";
 import { gradeWorld } from "@/content/math-grade4";
-import { validateContentGraph } from "@/lib/content-validation";
+import {
+  validateContentGraph,
+  type ContentGraph,
+} from "@/lib/content-validation";
 import { buildRuntimeContentGraph } from "@/lib/runtime-content";
 
 function orderedMilestones(milestones: Milestone[]) {
@@ -11,7 +14,49 @@ function orderedMilestones(milestones: Milestone[]) {
 }
 
 export function getCurriculumPlan() {
-  const graph = buildRuntimeContentGraph();
+  const runtimeGraph = buildRuntimeContentGraph();
+  const gradeMilestones = runtimeGraph.milestones.filter((milestone) =>
+    milestone.id.startsWith("math.g4."),
+  );
+  const gradeMilestoneIds = new Set(
+    gradeMilestones.map((milestone) => milestone.id),
+  );
+  const gradeBosses = runtimeGraph.bosses.filter((boss) =>
+    gradeMilestoneIds.has(boss.milestoneId),
+  );
+  const gradeBossQuestionIds = new Set(
+    gradeBosses.flatMap((boss) => boss.questionIds),
+  );
+  const runtimeNodesById = new Map(
+    runtimeGraph.nodes.map((node) => [node.id, node]),
+  );
+  const gradeNodeIds = new Set<string>();
+  function includeNodeWithPrerequisites(nodeId: string) {
+    if (gradeNodeIds.has(nodeId)) return;
+    const node = runtimeNodesById.get(nodeId);
+    if (!node) return;
+    gradeNodeIds.add(node.id);
+    for (const prerequisiteId of node.prerequisites) {
+      includeNodeWithPrerequisites(prerequisiteId);
+    }
+  }
+  for (const milestone of gradeMilestones) {
+    for (const nodeId of milestone.nodeIds) {
+      includeNodeWithPrerequisites(nodeId);
+    }
+  }
+  const graph: ContentGraph = {
+    contentVersion: runtimeGraph.contentVersion,
+    nodes: runtimeGraph.nodes.filter((node) => gradeNodeIds.has(node.id)),
+    chapters: runtimeGraph.chapters.filter((chapter) =>
+      gradeMilestoneIds.has(chapter.milestoneId),
+    ),
+    milestones: gradeMilestones,
+    bosses: gradeBosses,
+    questions: runtimeGraph.questions.filter((question) =>
+      gradeBossQuestionIds.has(question.id),
+    ),
+  };
   const ordered = orderedMilestones(graph.milestones);
   const validationIssues = validateContentGraph(graph);
 

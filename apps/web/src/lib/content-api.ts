@@ -5,7 +5,7 @@ import {
   type ProgressSnapshot,
   type PublicChapter,
 } from "@knowgate/domain";
-import { gradeWorld } from "@/content/math-grade4";
+import { mathGradeWorlds } from "@/content/math-curriculum";
 import { buildRuntimeContentGraph } from "@/lib/runtime-content";
 
 function publicChapter(chapter: Chapter): PublicChapter {
@@ -24,6 +24,10 @@ export function getPublicRuntimeContentGraph() {
   const graph = buildRuntimeContentGraph();
   return {
     ...graph,
+    worlds: mathGradeWorlds.map((world) => ({
+      ...world,
+      contentVersion: graph.contentVersion,
+    })),
     chapters: graph.chapters.map(publicChapter),
     questions: graph.questions.map(publicContentQuestion),
   };
@@ -33,15 +37,13 @@ export function getSubjects() {
   const graph = buildRuntimeContentGraph();
   return [
     {
-      id: gradeWorld.subjectId,
+      id: "math",
       name: "数学",
-      gradeWorlds: [
-        {
-          id: gradeWorld.id,
-          grade: gradeWorld.grade,
-          name: gradeWorld.name,
-        },
-      ],
+      gradeWorlds: mathGradeWorlds.map((world) => ({
+        id: world.id,
+        grade: world.grade,
+        name: world.name,
+      })),
       contentVersion: graph.contentVersion,
     },
   ];
@@ -52,26 +54,37 @@ export function getGradeWorld(
   progress: ProgressSnapshot,
 ) {
   const graph = buildRuntimeContentGraph();
-  const world = {
-    ...gradeWorld,
-    contentVersion: graph.contentVersion,
-    totalStages: graph.milestones.length,
-  };
-
-  if (gradeWorldId !== world.id) {
+  const summary = mathGradeWorlds.find((item) => item.id === gradeWorldId);
+  if (!summary) {
     throw new Error("GRADE_WORLD_NOT_FOUND");
   }
 
+  const gradePrefix = `math.g${summary.grade}.`;
+  const gradeMilestones = graph.milestones
+    .filter((milestone) => milestone.id.startsWith(gradePrefix))
+    .sort((left, right) => left.stageNo - right.stageNo);
+  const gradeMilestoneIds = new Set(
+    gradeMilestones.map((milestone) => milestone.id),
+  );
+  const gradeChapters = graph.chapters.filter((chapter) =>
+    gradeMilestoneIds.has(chapter.milestoneId),
+  );
+  const world = {
+    ...summary,
+    contentVersion: graph.contentVersion,
+    totalStages: gradeMilestones.length,
+  };
+
   return {
     ...world,
-    milestones: graph.milestones.map((milestone, index) => {
-      const milestoneChapters = graph.chapters.filter((chapter) =>
+    milestones: gradeMilestones.map((milestone, index) => {
+      const milestoneChapters = gradeChapters.filter((chapter) =>
         milestone.chapterIds.includes(chapter.id),
       );
       const completedChapterCount = milestoneChapters.filter((chapter) =>
         progress.passedChapterIds.includes(chapter.id),
       ).length;
-      const previousMilestone = graph.milestones[index - 1];
+      const previousMilestone = gradeMilestones[index - 1];
       const previousWon =
         !previousMilestone ||
         progress.battleOutcomes[previousMilestone.id]?.status === "won";

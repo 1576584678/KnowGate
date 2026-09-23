@@ -50,7 +50,13 @@ export function createMilestoneBattle(
     throw new Error("MILESTONE_LOCKED");
   }
 
-  const previousMilestone = [...graph.milestones]
+  const milestoneGrade = milestone.id.match(/^math\.g(\d+)\./)?.[1];
+  const scopedMilestones = milestoneGrade
+    ? graph.milestones.filter((item) =>
+        item.id.startsWith(`math.g${milestoneGrade}.`),
+      )
+    : graph.milestones;
+  const previousMilestone = [...scopedMilestones]
     .sort((left, right) => left.stageNo - right.stageNo)
     .filter((item) => item.stageNo < milestone.stageNo)
     .at(-1);

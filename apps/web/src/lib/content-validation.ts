@@ -5,14 +5,7 @@ import type {
   KnowledgeNode,
   Milestone,
 } from "@knowgate/domain";
-import {
-  bossQuestions,
-  bosses,
-  chapters,
-  gradeWorld,
-  knowledgeNodes,
-  milestones,
-} from "@/content/math-grade4";
+import { fullMathContentGraph } from "@/content/math-curriculum";
 
 export type ContentValidationIssue = {
   severity: "error" | "warning";
@@ -159,6 +152,11 @@ function validateQuestion(question: ContentQuestion) {
   return issues;
 }
 
+function gradeScopeFromId(entityId: string) {
+  const match = /^math\.g(\d+)\./u.exec(entityId);
+  return match ? `math.g${match[1]}` : "default";
+}
+
 function hasRepeatedFractionComparison(
   visual: ContentQuestion["visual"],
 ) {
@@ -249,14 +247,7 @@ function checkChapterDensity(graph: ContentGraph) {
 }
 
 export function validateContentGraph(
-  graph: ContentGraph = {
-    contentVersion: gradeWorld.contentVersion,
-    nodes: knowledgeNodes,
-    chapters,
-    milestones,
-    bosses,
-    questions: bossQuestions,
-  },
+  graph: ContentGraph = fullMathContentGraph,
 ): ContentValidationIssue[] {
   const issues: ContentValidationIssue[] = [];
   const nodeIds = new Set(graph.nodes.map((node) => node.id));
@@ -272,7 +263,7 @@ export function validateContentGraph(
       severity: "error",
       code: "MISSING_CONTENT_VERSION",
       entityType: "world",
-      entityId: gradeWorld.id,
+      entityId: "math",
       message: "缺少内容版本号。",
     });
   }
@@ -433,18 +424,25 @@ export function validateContentGraph(
     }
   }
 
-  const stageNumbers = new Set<number>();
+  const stageNumbersByScope = new Map<string, Set<number>>();
+  const milestonesByScope = new Map<string, Milestone[]>();
   for (const milestone of graph.milestones) {
+    const scope = gradeScopeFromId(milestone.id);
+    const stageNumbers = stageNumbersByScope.get(scope) ?? new Set<number>();
+    const scopedMilestones = milestonesByScope.get(scope) ?? [];
     if (stageNumbers.has(milestone.stageNo)) {
       issues.push({
         severity: "error",
         code: "DUPLICATE_STAGE",
         entityType: "milestone",
         entityId: milestone.id,
-        message: `关卡阶段号重复：${milestone.stageNo}`,
+        message: `${scope} 关卡阶段号重复：${milestone.stageNo}`,
       });
     }
     stageNumbers.add(milestone.stageNo);
+    stageNumbersByScope.set(scope, stageNumbers);
+    scopedMilestones.push(milestone);
+    milestonesByScope.set(scope, scopedMilestones);
 
     if (milestone.chapterIds.length === 0) {
       issues.push({
@@ -513,15 +511,18 @@ export function validateContentGraph(
     }
   }
 
-  for (let stageNo = 1; stageNo <= graph.milestones.length; stageNo += 1) {
-    if (!stageNumbers.has(stageNo)) {
-      issues.push({
-        severity: "error",
-        code: "MISSING_STAGE",
-        entityType: "milestone",
-        entityId: String(stageNo),
-        message: `课程阶段号不连续，缺少第 ${stageNo} 阶段。`,
-      });
+  for (const [scope, scopedMilestones] of milestonesByScope) {
+    const stageNumbers = stageNumbersByScope.get(scope) ?? new Set<number>();
+    for (let stageNo = 1; stageNo <= scopedMilestones.length; stageNo += 1) {
+      if (!stageNumbers.has(stageNo)) {
+        issues.push({
+          severity: "error",
+          code: "MISSING_STAGE",
+          entityType: "milestone",
+          entityId: `${scope}.${stageNo}`,
+          message: `${scope} 课程阶段号不连续，缺少第 ${stageNo} 阶段。`,
+        });
+      }
     }
   }
 

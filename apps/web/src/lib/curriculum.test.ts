@@ -5,7 +5,7 @@ describe("curriculum plan", () => {
   it("publishes all ten ordered playable stages", () => {
     const plan = getCurriculumPlan();
 
-    expect(plan.contentVersion).toBe("2026.09.20.6");
+    expect(plan.contentVersion).toBe("2026.09.23.1");
     expect(plan.totalStages).toBe(10);
     expect(plan.stages).toHaveLength(10);
     expect(plan.stages.map((stage) => stage.stageNo)).toEqual([
